@@ -8,6 +8,7 @@ namespace kk {
         class Window {
         public:
             static Window create(size_t width, size_t height, const std::string& name);
+            static void destroy(Window& window);
 
             inline const std::string& getName() const {
                 return name_;
@@ -19,7 +20,8 @@ namespace kk {
 
             inline void* acquireHandle() { return handle_; }
 
-            static void destroy(Window& window);
+            bool isClosed() const;
+            void pollEvents();
 
         private:
             std::string name_;

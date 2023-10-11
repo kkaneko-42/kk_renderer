@@ -5,12 +5,24 @@ using namespace kk::renderer;
 
 TEST(RenderingLoopTest, WindowCreation) {
     const std::pair<size_t, size_t> size = { 800, 800 };
-    const std::string name = "test";
+    const std::string name = "create window test";
     Window window = Window::create(size.first, size.second, name);
 
     EXPECT_EQ(window.getName(), name);
     EXPECT_EQ(window.getSize(), size);
     EXPECT_TRUE(window.acquireHandle() != nullptr);
+
+    Window::destroy(window);
+}
+
+TEST(RenderingLoopTest, WindowLoop) {
+    const std::pair<size_t, size_t> size = { 800, 800 };
+    const std::string name = "window loop test";
+    Window window = Window::create(size.first, size.second, name);
+
+    while (!window.isClosed()) {
+        window.pollEvents();
+    }
 
     Window::destroy(window);
 }
