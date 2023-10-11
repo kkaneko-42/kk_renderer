@@ -11,6 +11,7 @@ namespace kk {
             VkPhysicalDevice gpu;
             uint32_t queue_family;
             VkDevice device;
+            VkQueue queue;
 
             static RenderingContext create();
             static void destory(RenderingContext& ctx);

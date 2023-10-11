@@ -13,6 +13,7 @@ static VkDebugUtilsMessengerEXT createDebugMessenger(VkInstance instance);
 static VkPhysicalDevice pickGPU(VkInstance instance, const std::vector<const char*>& exts);
 static uint32_t getQueueFamily(VkPhysicalDevice device, VkQueueFlags kind);
 static VkDevice createLogicalDevice(VkPhysicalDevice gpu, const std::vector<const char*>& exts, uint32_t queue_family);
+static VkQueue getQueue(VkDevice device, uint32_t family);
 
 RenderingContext RenderingContext::create() {
     const std::vector<const char*> instance_exts = {
@@ -29,6 +30,7 @@ RenderingContext RenderingContext::create() {
     ctx.gpu = pickGPU(ctx.instance, device_exts);
     ctx.queue_family = getQueueFamily(ctx.gpu, VK_QUEUE_GRAPHICS_BIT);
     ctx.device = createLogicalDevice(ctx.gpu, device_exts, ctx.queue_family);
+    ctx.queue = getQueue(ctx.device, ctx.queue_family);
 
     return ctx;
 }
@@ -172,4 +174,10 @@ static VkDevice createLogicalDevice(VkPhysicalDevice gpu, const std::vector<cons
     assert(vkCreateDevice(gpu, &info, nullptr, &device) == VK_SUCCESS);
 
     return device;
+}
+
+static VkQueue getQueue(VkDevice device, uint32_t family) {
+    VkQueue queue;
+    vkGetDeviceQueue(device, family, 0, &queue);
+    return queue;
 }
