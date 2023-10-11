@@ -135,7 +135,7 @@ static VkPhysicalDevice pickGPU(VkInstance instance, const std::vector<const cha
         }
     }
 
-    assert(false, "Suitable physical device not found");
+    assert(false && "Suitable physical device not found");
     return VK_NULL_HANDLE;
 }
 
@@ -151,7 +151,7 @@ static uint32_t getQueueFamily(VkPhysicalDevice device, VkQueueFlags kind) {
         }
     }
 
-    assert(false, "Device queue required is unsupported");
+    assert(false && "Device queue required is unsupported");
     return UINT32_MAX;
 }
 
