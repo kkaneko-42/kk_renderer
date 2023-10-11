@@ -1,5 +1,8 @@
 #include <gtest/gtest.h>
+#include "kk_renderer/kk_renderer.h"
+
+using namespace kk::renderer;
 
 TEST(RenderingLoopTest, RenderingLoopTest) {
-    EXPECT_TRUE(true);
+    RenderingContext ctx = RenderingContext::create();
 }

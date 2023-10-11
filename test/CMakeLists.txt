@@ -12,6 +12,7 @@ add_executable(${PROJECT_NAME} ${SRCS})
 target_include_directories(${PROJECT_NAME} PRIVATE ../external/vulkan/Include)
 target_include_directories(${PROJECT_NAME} PRIVATE ../external/glfw/include)
 target_include_directories(${PROJECT_NAME} PRIVATE ../external/googletest/include)
+target_include_directories(${PROJECT_NAME} PRIVATE ../include)
 
 target_link_directories(${PROJECT_NAME} PRIVATE ../external/vulkan/Lib/linux)
 target_link_directories(${PROJECT_NAME} PRIVATE ../external/glfw/lib/linux)
