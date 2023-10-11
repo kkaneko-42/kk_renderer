@@ -15,7 +15,7 @@ namespace kk {
             VkCommandPool cmd_pool;
 
             static RenderingContext create();
-            static void destory(RenderingContext& ctx);
+            void destroy();
         };
     }
 }

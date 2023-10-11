@@ -16,6 +16,6 @@ SwapChain SwapChain::create(RenderingContext& ctx, Window& window) {
     return swap_chain;
 }
 
-void SwapChain::destroy(RenderingContext& ctx, SwapChain& swap_chain) {
-    vkDestroySurfaceKHR(ctx.instance, swap_chain.surface_, nullptr);
+void SwapChain::destroy(RenderingContext& ctx) {
+    vkDestroySurfaceKHR(ctx.instance, surface_, nullptr);
 }

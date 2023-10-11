@@ -11,7 +11,7 @@ namespace kk {
         public:
             static std::vector<const char*> getRequiredExtensions();
             static Window create(size_t width, size_t height, const std::string& name);
-            static void destroy(Window& window);
+            void destroy();
 
             inline const std::string& getName() const {
                 return name_;

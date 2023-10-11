@@ -8,7 +8,7 @@ namespace kk {
     namespace renderer {
         struct SwapChain {
             static SwapChain create(RenderingContext& ctx, Window& window);
-            static void destroy(RenderingContext& ctx, SwapChain& swap_chain);
+            void destroy(RenderingContext& ctx);
 
             VkSurfaceKHR surface_;
         };

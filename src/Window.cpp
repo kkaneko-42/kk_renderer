@@ -50,8 +50,8 @@ Window Window::create(size_t width, size_t height, const std::string& name) {
     return window;
 }
 
-void Window::destroy(Window& window) {
-    glfwDestroyWindow(AS_GLFW_WINDOW(window.handle_));
+void Window::destroy() {
+    glfwDestroyWindow(AS_GLFW_WINDOW(handle_));
 }
 
 bool Window::isClosed() const {

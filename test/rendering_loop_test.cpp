@@ -12,7 +12,7 @@ TEST(RenderingLoopTest, WindowCreation) {
     EXPECT_EQ(window.getSize(), size);
     EXPECT_TRUE(window.acquireHandle() != nullptr);
 
-    Window::destroy(window);
+    window.destroy();
 }
 
 TEST(RenderingLoopTest, WindowLoop) {
@@ -24,12 +24,12 @@ TEST(RenderingLoopTest, WindowLoop) {
         window.pollEvents();
     }
 
-    Window::destroy(window);
+    window.destroy();
 }
 
 TEST(RenderingLoopTest, ContextCreation) {
     RenderingContext ctx = RenderingContext::create();
-    RenderingContext::destory(ctx);
+    ctx.destroy();
 }
 
 TEST(RenderingLoopTest, SwapChainCreation) {
@@ -40,7 +40,7 @@ TEST(RenderingLoopTest, SwapChainCreation) {
 
     SwapChain swap_chain = SwapChain::create(ctx, window);
 
-    SwapChain::destroy(ctx, swap_chain);
-    RenderingContext::destory(ctx);
-    Window::destroy(window);
+    swap_chain.destroy(ctx);
+    ctx.destroy();
+    window.destroy();
 }

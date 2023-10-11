@@ -37,14 +37,14 @@ RenderingContext RenderingContext::create() {
     return ctx;
 }
 
-void RenderingContext::destory(RenderingContext& ctx) {
-    vkDestroyCommandPool(ctx.device, ctx.cmd_pool, nullptr);
-    vkDestroyDevice(ctx.device, nullptr);
-    auto destroyer = (PFN_vkDestroyDebugUtilsMessengerEXT)vkGetInstanceProcAddr(ctx.instance, "vkDestroyDebugUtilsMessengerEXT");
+void RenderingContext::destroy() {
+    vkDestroyCommandPool(device, cmd_pool, nullptr);
+    vkDestroyDevice(device, nullptr);
+    auto destroyer = (PFN_vkDestroyDebugUtilsMessengerEXT)vkGetInstanceProcAddr(instance, "vkDestroyDebugUtilsMessengerEXT");
     if (destroyer != nullptr) {
-        destroyer(ctx.instance, ctx.debug_messenger, nullptr);
+        destroyer(instance, debug_messenger, nullptr);
     }
-    vkDestroyInstance(ctx.instance, nullptr);
+    vkDestroyInstance(instance, nullptr);
 }
 
 static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(
