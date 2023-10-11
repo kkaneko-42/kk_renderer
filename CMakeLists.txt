@@ -7,6 +7,12 @@ set(SRCS
 )
 
 add_library(${PROJECT_NAME} STATIC ${SRCS})
-target_include_directories(${PROJECT_NAME} PRIVATE ./external/vulkan/Include)
-target_include_directories(${PROJECT_NAME} PRIVATE ./external/glfw/include)
-target_include_directories(${PROJECT_NAME} PRIVATE ./include)
+target_include_directories(${PROJECT_NAME} PRIVATE ${PROJECT_SOURCE_DIR}/external/vulkan/Include)
+target_include_directories(${PROJECT_NAME} PRIVATE ${PROJECT_SOURCE_DIR}/external/glfw/include)
+target_include_directories(${PROJECT_NAME} PRIVATE ${PROJECT_SOURCE_DIR}/include)
+
+if (MSVC)
+	target_compile_options(${PROJECT_NAME} PRIVATE /MTd)
+endif (MSVC)
+
+add_subdirectory(test)
