@@ -1,4 +1,5 @@
 #include "kk_renderer/RenderingContext.h"
+#include "kk_renderer/Window.h"
 #include <iostream>
 #include <set>
 #include <cassert>
@@ -17,9 +18,8 @@ static VkQueue getQueue(VkDevice device, uint32_t family);
 static VkCommandPool createCommandPool(VkDevice device, uint32_t dst_queue_family);
 
 RenderingContext RenderingContext::create() {
-    const std::vector<const char*> instance_exts = {
-        VK_EXT_DEBUG_UTILS_EXTENSION_NAME,
-    };
+    std::vector<const char*> instance_exts = Window::getRequiredExtensions();
+    instance_exts.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
     const std::vector<const char*> layers = {
         "VK_LAYER_KHRONOS_validation",
     };

@@ -1,12 +1,15 @@
 #pragma once
 
 #include <string>
+#include <vector>
 #include <functional>
+
 
 namespace kk {
     namespace renderer {
         class Window {
         public:
+            static std::vector<const char*> getRequiredExtensions();
             static Window create(size_t width, size_t height, const std::string& name);
             static void destroy(Window& window);
 

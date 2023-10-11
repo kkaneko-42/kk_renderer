@@ -31,3 +31,16 @@ TEST(RenderingLoopTest, ContextCreation) {
     RenderingContext ctx = RenderingContext::create();
     RenderingContext::destory(ctx);
 }
+
+TEST(RenderingLoopTest, SwapChainCreation) {
+    const std::pair<size_t, size_t> size = { 800, 800 };
+    const std::string name = "swap chain creation test";
+    Window window = Window::create(size.first, size.second, name);
+    RenderingContext ctx = RenderingContext::create();
+
+    SwapChain swap_chain = SwapChain::create(ctx, window);
+
+    SwapChain::destroy(ctx, swap_chain);
+    RenderingContext::destory(ctx);
+    Window::destroy(window);
+}
