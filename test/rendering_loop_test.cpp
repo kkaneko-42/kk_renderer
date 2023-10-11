@@ -3,6 +3,7 @@
 
 using namespace kk::renderer;
 
-TEST(RenderingLoopTest, RenderingLoopTest) {
+TEST(RenderingLoopTest, ContextCreation) {
     RenderingContext ctx = RenderingContext::create();
+    RenderingContext::destory(ctx);
 }

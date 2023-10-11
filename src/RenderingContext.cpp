@@ -1,6 +1,7 @@
 #include "kk_renderer/RenderingContext.h"
 #include <iostream>
 #include <set>
+#include <cassert>
 
 using namespace kk::renderer;
 
@@ -8,7 +9,10 @@ static VkInstance createInstance(
     const std::vector<const char*>& exts,
     const std::vector<const char*>& layers
 );
+static VkDebugUtilsMessengerEXT createDebugMessenger(VkInstance instance);
 static VkPhysicalDevice pickGPU(VkInstance instance, const std::vector<const char*>& exts);
+static uint32_t getQueueFamily(VkPhysicalDevice device, VkQueueFlags kind);
+static VkDevice createLogicalDevice(VkPhysicalDevice gpu, const std::vector<const char*>& exts, uint32_t queue_family);
 
 RenderingContext RenderingContext::create() {
     const std::vector<const char*> instance_exts = {
@@ -21,9 +25,21 @@ RenderingContext RenderingContext::create() {
 
     RenderingContext ctx{};
     ctx.instance = createInstance(instance_exts, layers);
+    ctx.debug_messenger = createDebugMessenger(ctx.instance);
     ctx.gpu = pickGPU(ctx.instance, device_exts);
+    ctx.queue_family = getQueueFamily(ctx.gpu, VK_QUEUE_GRAPHICS_BIT);
+    ctx.device = createLogicalDevice(ctx.gpu, device_exts, ctx.queue_family);
 
     return ctx;
+}
+
+void RenderingContext::destory(RenderingContext& ctx) {
+    vkDestroyDevice(ctx.device, nullptr);
+    auto destroyer = (PFN_vkDestroyDebugUtilsMessengerEXT)vkGetInstanceProcAddr(ctx.instance, "vkDestroyDebugUtilsMessengerEXT");
+    if (destroyer != nullptr) {
+        destroyer(ctx.instance, ctx.debug_messenger, nullptr);
+    }
+    vkDestroyInstance(ctx.instance, nullptr);
 }
 
 static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(
@@ -69,11 +85,21 @@ static VkInstance createInstance(
     info.pNext = &debug_info;
 
     VkInstance instance;
-    if (vkCreateInstance(&info, nullptr, &instance) != VK_SUCCESS) {
-        throw std::runtime_error("Failed to create instance");
-    }
+    assert(vkCreateInstance(&info, nullptr, &instance) == VK_SUCCESS);
 
     return instance;
+}
+
+static VkDebugUtilsMessengerEXT createDebugMessenger(VkInstance instance) {
+    VkDebugUtilsMessengerCreateInfoEXT info{};
+    populateDebugMessengerCreateInfo(info);
+
+    VkDebugUtilsMessengerEXT debug_messenger{};
+    auto creator = (PFN_vkCreateDebugUtilsMessengerEXT)vkGetInstanceProcAddr(instance, "vkCreateDebugUtilsMessengerEXT");
+    assert(creator != nullptr);
+    creator(instance, &info, nullptr, &debug_messenger);
+
+    return debug_messenger;
 }
 
 static bool isExtensionsSupported(VkPhysicalDevice gpu, const std::vector<const char*>& exts_required) {
@@ -104,5 +130,46 @@ static VkPhysicalDevice pickGPU(VkInstance instance, const std::vector<const cha
         }
     }
 
-    throw std::runtime_error("Suitable physical device not found");
+    assert(false, "Suitable physical device not found");
+    return VK_NULL_HANDLE;
+}
+
+static uint32_t getQueueFamily(VkPhysicalDevice device, VkQueueFlags kind) {
+    uint32_t family_count = 0;
+    vkGetPhysicalDeviceQueueFamilyProperties(device, &family_count, nullptr);
+    std::vector<VkQueueFamilyProperties> families(family_count);
+    vkGetPhysicalDeviceQueueFamilyProperties(device, &family_count, families.data());
+
+    for (uint32_t i = 0; i < families.size(); ++i) {
+        if (families[i].queueFlags & kind) {
+            return i;
+        }
+    }
+
+    assert(false, "Device queue required is unsupported");
+    return UINT32_MAX;
+}
+
+static VkDevice createLogicalDevice(VkPhysicalDevice gpu, const std::vector<const char*>& exts, uint32_t queue_family) {
+    VkPhysicalDeviceFeatures features{};
+
+    VkDeviceQueueCreateInfo queue_info{};
+    queue_info.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+    queue_info.queueFamilyIndex = queue_family;
+    queue_info.queueCount = 1;
+    float priority = 1.0f;
+    queue_info.pQueuePriorities = &priority;
+
+    VkDeviceCreateInfo info{};
+    info.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
+    info.pEnabledFeatures = &features;
+    info.enabledExtensionCount = exts.size();
+    info.ppEnabledExtensionNames = exts.data();
+    info.queueCreateInfoCount = 1;
+    info.pQueueCreateInfos = &queue_info;
+
+    VkDevice device;
+    assert(vkCreateDevice(gpu, &info, nullptr, &device) == VK_SUCCESS);
+
+    return device;
 }
