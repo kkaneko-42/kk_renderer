@@ -13,13 +13,13 @@ target_include_directories(${PROJECT_NAME} PRIVATE ${kk_renderer_SOURCE_DIR}/ext
 target_include_directories(${PROJECT_NAME} PRIVATE ${kk_renderer_SOURCE_DIR}/external/glfw/include)
 target_include_directories(${PROJECT_NAME} PRIVATE ${kk_renderer_SOURCE_DIR}/external/googletest/include)
 target_include_directories(${PROJECT_NAME} PRIVATE ${kk_renderer_SOURCE_DIR}/include)
-target_link_directories(${PROJECT_NAME} PRIVATE ${kk_renderer_SOURCE_DIR}//external/vulkan/Lib)
+target_link_directories(${PROJECT_NAME} PRIVATE ${kk_renderer_SOURCE_DIR}/external/vulkan/Lib)
 target_link_directories(${PROJECT_NAME} PRIVATE ${kk_renderer_SOURCE_DIR}/external/glfw/lib)
 target_link_directories(${PROJECT_NAME} PRIVATE ${kk_renderer_SOURCE_DIR}/external/googletest/lib)
 target_link_directories(${PROJECT_NAME} PRIVATE ${kk_renderer_BINARY_DIR})
 
 target_link_libraries(${PROJECT_NAME} PRIVATE kk_renderer)
-if (LINUX)
+if (UNIX)
 	target_link_libraries(
 		${PROJECT_NAME} PRIVATE
 		vulkan
@@ -35,4 +35,6 @@ elseif (MSVC)
 		gtest
 	)
 	target_compile_options(${PROJECT_NAME} PRIVATE /MTd)
-endif (LINUX)
+else (UNIX)
+    message(FATAL_ERROR "fatal: unknown build platform")
+endif (UNIX)
