@@ -3,6 +3,7 @@
 #include <iostream>
 #include <set>
 #include <cassert>
+#include <functional>
 
 using namespace kk::renderer;
 
@@ -12,8 +13,11 @@ static VkInstance createInstance(
 );
 static VkDebugUtilsMessengerEXT createDebugMessenger(VkInstance instance);
 static VkPhysicalDevice pickGPU(VkInstance instance, const std::vector<const char*>& exts);
-static uint32_t getQueueFamily(VkPhysicalDevice device, VkQueueFlags kind);
-static VkDevice createLogicalDevice(VkPhysicalDevice gpu, const std::vector<const char*>& exts, uint32_t queue_family);
+static VkDevice createLogicalDevice(VkPhysicalDevice gpu, const std::vector<const char*>& exts, const std::set<uint32_t>& families);
+static uint32_t findQueueFamily(
+    VkPhysicalDevice device,
+    std::function<bool(uint32_t, VkQueueFamilyProperties)> cond
+);
 static VkQueue getQueue(VkDevice device, uint32_t family);
 static VkCommandPool createCommandPool(VkDevice device, uint32_t dst_queue_family);
 
@@ -29,10 +33,14 @@ RenderingContext RenderingContext::create() {
     ctx.instance = createInstance(instance_exts, layers);
     ctx.debug_messenger = createDebugMessenger(ctx.instance);
     ctx.gpu = pickGPU(ctx.instance, device_exts);
-    ctx.queue_family = getQueueFamily(ctx.gpu, VK_QUEUE_GRAPHICS_BIT);
-    ctx.device = createLogicalDevice(ctx.gpu, device_exts, ctx.queue_family);
-    ctx.queue = getQueue(ctx.device, ctx.queue_family);
-    ctx.cmd_pool = createCommandPool(ctx.device, ctx.queue_family);
+    ctx.graphics_family = findQueueFamily(ctx.gpu, [](uint32_t i, auto prop) {
+        return (prop.queueFlags & VK_QUEUE_GRAPHICS_BIT);
+    });
+    ctx.present_family = ctx.graphics_family; // CONCERN
+    ctx.device = createLogicalDevice(ctx.gpu, device_exts, { ctx.graphics_family, ctx.present_family });
+    ctx.graphics_queue = getQueue(ctx.device, ctx.graphics_family);
+    ctx.present_queue = getQueue(ctx.device, ctx.present_family);
+    ctx.cmd_pool = createCommandPool(ctx.device, ctx.graphics_family);
 
     return ctx;
 }
@@ -139,14 +147,17 @@ static VkPhysicalDevice pickGPU(VkInstance instance, const std::vector<const cha
     return VK_NULL_HANDLE;
 }
 
-static uint32_t getQueueFamily(VkPhysicalDevice device, VkQueueFlags kind) {
+static uint32_t findQueueFamily(
+    VkPhysicalDevice device,
+    std::function<bool(uint32_t, VkQueueFamilyProperties)> cond
+) {
     uint32_t family_count = 0;
     vkGetPhysicalDeviceQueueFamilyProperties(device, &family_count, nullptr);
     std::vector<VkQueueFamilyProperties> families(family_count);
     vkGetPhysicalDeviceQueueFamilyProperties(device, &family_count, families.data());
 
     for (uint32_t i = 0; i < families.size(); ++i) {
-        if (families[i].queueFlags & kind) {
+        if (cond(i, families[i])) {
             return i;
         }
     }
@@ -155,23 +166,29 @@ static uint32_t getQueueFamily(VkPhysicalDevice device, VkQueueFlags kind) {
     return UINT32_MAX;
 }
 
-static VkDevice createLogicalDevice(VkPhysicalDevice gpu, const std::vector<const char*>& exts, uint32_t queue_family) {
+static VkDevice createLogicalDevice(VkPhysicalDevice gpu, const std::vector<const char*>& exts, const std::set<uint32_t>& families) {
     VkPhysicalDeviceFeatures features{};
 
-    VkDeviceQueueCreateInfo queue_info{};
-    queue_info.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
-    queue_info.queueFamilyIndex = queue_family;
-    queue_info.queueCount = 1;
+    
+    std::vector<VkDeviceQueueCreateInfo> queue_infos;
+    queue_infos.reserve(families.size());
     float priority = 1.0f;
-    queue_info.pQueuePriorities = &priority;
+    for (uint32_t family : families) {
+        VkDeviceQueueCreateInfo queue_info{};
+        queue_info.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+        queue_info.queueFamilyIndex = family;
+        queue_info.queueCount = 1;
+        queue_info.pQueuePriorities = &priority;
+        queue_infos.push_back(queue_info);
+    }
 
     VkDeviceCreateInfo info{};
     info.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
     info.pEnabledFeatures = &features;
     info.enabledExtensionCount = exts.size();
     info.ppEnabledExtensionNames = exts.data();
-    info.queueCreateInfoCount = 1;
-    info.pQueueCreateInfos = &queue_info;
+    info.queueCreateInfoCount = queue_infos.size();
+    info.pQueueCreateInfos = queue_infos.data();
 
     VkDevice device;
     assert(vkCreateDevice(gpu, &info, nullptr, &device) == VK_SUCCESS);

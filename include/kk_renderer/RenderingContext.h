@@ -9,9 +9,9 @@ namespace kk {
             VkInstance instance;
             VkDebugUtilsMessengerEXT debug_messenger;
             VkPhysicalDevice gpu;
-            uint32_t queue_family;
+            uint32_t graphics_family, present_family;
             VkDevice device;
-            VkQueue queue;
+            VkQueue graphics_queue, present_queue;
             VkCommandPool cmd_pool;
 
             static RenderingContext create();
