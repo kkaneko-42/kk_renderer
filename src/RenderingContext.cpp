@@ -14,6 +14,7 @@ static VkPhysicalDevice pickGPU(VkInstance instance, const std::vector<const cha
 static uint32_t getQueueFamily(VkPhysicalDevice device, VkQueueFlags kind);
 static VkDevice createLogicalDevice(VkPhysicalDevice gpu, const std::vector<const char*>& exts, uint32_t queue_family);
 static VkQueue getQueue(VkDevice device, uint32_t family);
+static VkCommandPool createCommandPool(VkDevice device, uint32_t dst_queue_family);
 
 RenderingContext RenderingContext::create() {
     const std::vector<const char*> instance_exts = {
@@ -31,11 +32,13 @@ RenderingContext RenderingContext::create() {
     ctx.queue_family = getQueueFamily(ctx.gpu, VK_QUEUE_GRAPHICS_BIT);
     ctx.device = createLogicalDevice(ctx.gpu, device_exts, ctx.queue_family);
     ctx.queue = getQueue(ctx.device, ctx.queue_family);
+    ctx.cmd_pool = createCommandPool(ctx.device, ctx.queue_family);
 
     return ctx;
 }
 
 void RenderingContext::destory(RenderingContext& ctx) {
+    vkDestroyCommandPool(ctx.device, ctx.cmd_pool, nullptr);
     vkDestroyDevice(ctx.device, nullptr);
     auto destroyer = (PFN_vkDestroyDebugUtilsMessengerEXT)vkGetInstanceProcAddr(ctx.instance, "vkDestroyDebugUtilsMessengerEXT");
     if (destroyer != nullptr) {
@@ -180,4 +183,15 @@ static VkQueue getQueue(VkDevice device, uint32_t family) {
     VkQueue queue;
     vkGetDeviceQueue(device, family, 0, &queue);
     return queue;
+}
+
+static VkCommandPool createCommandPool(VkDevice device, uint32_t dst_queue_family) {
+    VkCommandPoolCreateInfo info{};
+    info.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+    info.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
+    info.queueFamilyIndex = dst_queue_family;
+
+    VkCommandPool pool;
+    assert(vkCreateCommandPool(device, &info, nullptr, &pool) == VK_SUCCESS);
+    return pool;
 }

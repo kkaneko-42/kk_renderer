@@ -12,6 +12,7 @@ namespace kk {
             uint32_t queue_family;
             VkDevice device;
             VkQueue queue;
+            VkCommandPool cmd_pool;
 
             static RenderingContext create();
             static void destory(RenderingContext& ctx);
