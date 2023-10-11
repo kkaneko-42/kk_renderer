@@ -4,6 +4,7 @@ cmake_minimum_required(VERSION 3.10)
 set(CMAKE_CXX_STANDARD 11)
 set(SRCS
     src/RenderingContext.cpp
+    src/Window.cpp
 )
 
 add_library(${PROJECT_NAME} STATIC ${SRCS})
