@@ -1,7 +1,14 @@
 #include "kk_renderer/RenderingContext.h"
 #include <iostream>
+#include <set>
 
 using namespace kk::renderer;
+
+static VkInstance createInstance(
+    const std::vector<const char*>& exts,
+    const std::vector<const char*>& layers
+);
+static VkPhysicalDevice pickGPU(VkInstance instance, const std::vector<const char*>& exts);
 
 RenderingContext RenderingContext::create() {
     const std::vector<const char*> instance_exts = {
@@ -14,11 +21,31 @@ RenderingContext RenderingContext::create() {
 
     RenderingContext ctx{};
     ctx.instance = createInstance(instance_exts, layers);
+    ctx.gpu = pickGPU(ctx.instance, device_exts);
 
     return ctx;
 }
 
-VkInstance RenderingContext::createInstance(
+static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(
+    VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
+    VkDebugUtilsMessageTypeFlagsEXT messageType,
+    const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData,
+    void* pUserData
+) {
+    std::cerr << "validation layer: " << pCallbackData->pMessage << std::endl;
+
+    return VK_FALSE;
+}
+
+static void populateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT& createInfo) {
+    createInfo = {};
+    createInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
+    createInfo.messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
+    createInfo.messageType = VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
+    createInfo.pfnUserCallback = debugCallback;
+}
+
+static VkInstance createInstance(
     const std::vector<const char*>& exts,
     const std::vector<const char*>& layers
 ) {
@@ -43,27 +70,39 @@ VkInstance RenderingContext::createInstance(
 
     VkInstance instance;
     if (vkCreateInstance(&info, nullptr, &instance) != VK_SUCCESS) {
-        throw std::runtime_error("failed to create instance");
+        throw std::runtime_error("Failed to create instance");
     }
 
     return instance;
 }
 
-void RenderingContext::populateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT& createInfo) {
-    createInfo = {};
-    createInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
-    createInfo.messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
-    createInfo.messageType = VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
-    createInfo.pfnUserCallback = &RenderingContext::debugCallback;
+static bool isExtensionsSupported(VkPhysicalDevice gpu, const std::vector<const char*>& exts_required) {
+    uint32_t ext_count = 0;
+    vkEnumerateDeviceExtensionProperties(gpu, nullptr, &ext_count, nullptr);
+
+    std::vector<VkExtensionProperties> exts_available(ext_count);
+    vkEnumerateDeviceExtensionProperties(gpu, nullptr, &ext_count, exts_available.data());
+
+    std::set<std::string> exts_unsupported(exts_required.begin(), exts_required.end());
+    for (const auto& ext : exts_available) {
+        exts_unsupported.erase(ext.extensionName);
+    }
+
+    return exts_unsupported.empty();
 }
 
-VKAPI_ATTR VkBool32 VKAPI_CALL RenderingContext::debugCallback(
-    VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
-    VkDebugUtilsMessageTypeFlagsEXT messageType,
-    const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData,
-    void* pUserData
-) {
-    std::cerr << "validation layer: " << pCallbackData->pMessage << std::endl;
+static VkPhysicalDevice pickGPU(VkInstance instance, const std::vector<const char*>& exts) {
+    uint32_t device_count = 0;
+    vkEnumeratePhysicalDevices(instance, &device_count, nullptr);
 
-    return VK_FALSE;
+    std::vector<VkPhysicalDevice> devices(device_count);
+    vkEnumeratePhysicalDevices(instance, &device_count, devices.data());
+
+    for (const auto& gpu : devices) {
+        if (isExtensionsSupported(gpu, exts)) {
+            return gpu;
+        }
+    }
+
+    throw std::runtime_error("Suitable physical device not found");
 }
