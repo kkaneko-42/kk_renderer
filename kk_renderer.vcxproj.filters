@@ -13,13 +13,21 @@
       <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
       <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
     </Filter>
-    <Filter Include="ソース ファイル\demo">
-      <UniqueIdentifier>{aa99b494-6826-4d0c-a217-264b1421cee2}</UniqueIdentifier>
+    <Filter Include="ソース ファイル\test">
+      <UniqueIdentifier>{5849554b-5a60-4129-9f88-df06dc40795a}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="demo\main.cpp">
-      <Filter>ソース ファイル\demo</Filter>
+    <ClCompile Include="test\rendering_loop_test.cpp">
+      <Filter>ソース ファイル\test</Filter>
     </ClCompile>
+    <ClCompile Include="test\runner.cpp">
+      <Filter>ソース ファイル\test</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="README.md">
+      <Filter>リソース ファイル</Filter>
+    </None>
   </ItemGroup>
 </Project>
