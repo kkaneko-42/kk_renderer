@@ -6,11 +6,19 @@
 
 namespace kk {
     namespace renderer {
-        struct SwapChain {
-            static SwapChain create(RenderingContext& ctx, Window& window);
+        struct Swapchain {
+            static Swapchain create(RenderingContext& ctx, Window& window);
             void destroy(RenderingContext& ctx);
 
-            VkSurfaceKHR surface_;
+            VkSurfaceKHR surface;
+
+            VkSurfaceFormatKHR surface_format;
+            VkPresentModeKHR present_mode;
+            VkExtent2D extent;
+            VkSurfaceTransformFlagBitsKHR pre_transform;
+            std::vector<VkImage> images;
+            std::vector<VkImageView> views;
+            VkSwapchainKHR swapchain;
         };
     }
 }
