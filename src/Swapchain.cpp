@@ -8,15 +8,7 @@ using namespace kk::renderer;
 
 template <class T>
 constexpr const T& clamp(const T& val, const T& low, const T& high) {
-    if (val < low) {
-        return low;
-    }
-    else if (val > high) {
-        return high;
-    }
-    else {
-        return val;
-    }
+    return (val < low) ? low : (val > high) ? high : val;
 }
 
 static void configureSettings(RenderingContext& ctx, Window& window, Swapchain& swapchain);

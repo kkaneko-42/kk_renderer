@@ -16,7 +16,7 @@ static VkPhysicalDevice pickGPU(VkInstance instance, const std::vector<const cha
 static VkDevice createLogicalDevice(VkPhysicalDevice gpu, const std::vector<const char*>& exts, const std::set<uint32_t>& families);
 static uint32_t findQueueFamily(
     VkPhysicalDevice device,
-    std::function<bool(uint32_t, VkQueueFamilyProperties)> cond
+    std::function<bool(uint32_t, const VkQueueFamilyProperties&)> cond
 );
 static VkQueue getQueue(VkDevice device, uint32_t family);
 static VkCommandPool createCommandPool(VkDevice device, uint32_t dst_queue_family);
@@ -33,7 +33,7 @@ RenderingContext RenderingContext::create() {
     ctx.instance = createInstance(instance_exts, layers);
     ctx.debug_messenger = createDebugMessenger(ctx.instance);
     ctx.gpu = pickGPU(ctx.instance, device_exts);
-    ctx.graphics_family = findQueueFamily(ctx.gpu, [](uint32_t i, auto prop) {
+    ctx.graphics_family = findQueueFamily(ctx.gpu, [](uint32_t i, const VkQueueFamilyProperties& prop) {
         return (prop.queueFlags & VK_QUEUE_GRAPHICS_BIT);
     });
     ctx.present_family = ctx.graphics_family; // CONCERN
@@ -149,7 +149,7 @@ static VkPhysicalDevice pickGPU(VkInstance instance, const std::vector<const cha
 
 static uint32_t findQueueFamily(
     VkPhysicalDevice device,
-    std::function<bool(uint32_t, VkQueueFamilyProperties)> cond
+    std::function<bool(uint32_t, const VkQueueFamilyProperties&)> cond
 ) {
     uint32_t family_count = 0;
     vkGetPhysicalDeviceQueueFamilyProperties(device, &family_count, nullptr);
@@ -169,7 +169,6 @@ static uint32_t findQueueFamily(
 static VkDevice createLogicalDevice(VkPhysicalDevice gpu, const std::vector<const char*>& exts, const std::set<uint32_t>& families) {
     VkPhysicalDeviceFeatures features{};
 
-    
     std::vector<VkDeviceQueueCreateInfo> queue_infos;
     queue_infos.reserve(families.size());
     float priority = 1.0f;

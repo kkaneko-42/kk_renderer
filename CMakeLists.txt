@@ -5,7 +5,7 @@ set(CMAKE_CXX_STANDARD 11)
 set(SRCS
     src/RenderingContext.cpp
     src/Window.cpp
-	src/Swapchain.cpp
+    src/Swapchain.cpp
 )
 
 add_library(${PROJECT_NAME} STATIC ${SRCS})
