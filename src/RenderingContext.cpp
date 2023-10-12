@@ -20,6 +20,7 @@ static uint32_t findQueueFamily(
 );
 static VkQueue getQueue(VkDevice device, uint32_t family);
 static VkCommandPool createCommandPool(VkDevice device, uint32_t dst_queue_family);
+static std::array<VkFence, kAsyncRenderingCount> createFences(VkDevice device);
 
 RenderingContext RenderingContext::create() {
     std::vector<const char*> instance_exts = Window::getRequiredExtensions();
@@ -43,11 +44,16 @@ RenderingContext RenderingContext::create() {
     ctx.graphics_queue = getQueue(ctx.device, ctx.graphics_family);
     ctx.present_queue = getQueue(ctx.device, ctx.present_family);
     ctx.cmd_pool = createCommandPool(ctx.device, ctx.graphics_family);
+    ctx.fences = createFences(ctx.device);
 
     return ctx;
 }
 
 void RenderingContext::destroy() {
+    for (const auto& fence : fences) {
+        vkDestroyFence(device, fence, nullptr);
+    }
+
     vkDestroyCommandPool(device, cmd_pool, nullptr);
     vkDestroyDevice(device, nullptr);
     auto destroyer = (PFN_vkDestroyDebugUtilsMessengerEXT)vkGetInstanceProcAddr(instance, "vkDestroyDebugUtilsMessengerEXT");
@@ -212,4 +218,17 @@ static VkCommandPool createCommandPool(VkDevice device, uint32_t dst_queue_famil
     VkCommandPool pool;
     assert(vkCreateCommandPool(device, &info, nullptr, &pool) == VK_SUCCESS);
     return pool;
+}
+
+static std::array<VkFence, kAsyncRenderingCount> createFences(VkDevice device) {
+    VkFenceCreateInfo info{};
+    info.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+    info.flags = VK_FENCE_CREATE_SIGNALED_BIT;
+
+    std::array<VkFence, kAsyncRenderingCount> fences;
+    for (size_t i = 0; i < kAsyncRenderingCount; ++i) {
+        assert(vkCreateFence(device, &info, nullptr, &fences[i]) == VK_SUCCESS);
+    }
+
+    return fences;
 }
