@@ -91,9 +91,9 @@ static VkInstance createInstance(
     VkInstanceCreateInfo info{};
     info.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
     info.pApplicationInfo = &app_info;
-    info.enabledExtensionCount = exts.size();
+    info.enabledExtensionCount = static_cast<uint32_t>(exts.size());
     info.ppEnabledExtensionNames = exts.data();
-    info.enabledLayerCount = layers.size();
+    info.enabledLayerCount = static_cast<uint32_t>(layers.size());
     info.ppEnabledLayerNames = layers.data();
     VkDebugUtilsMessengerCreateInfoEXT debug_info{};
     populateDebugMessengerCreateInfo(debug_info);
@@ -186,9 +186,9 @@ static VkDevice createLogicalDevice(VkPhysicalDevice gpu, const std::vector<cons
     VkDeviceCreateInfo info{};
     info.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
     info.pEnabledFeatures = &features;
-    info.enabledExtensionCount = exts.size();
+    info.enabledExtensionCount = static_cast<uint32_t>(exts.size());
     info.ppEnabledExtensionNames = exts.data();
-    info.queueCreateInfoCount = queue_infos.size();
+    info.queueCreateInfoCount = static_cast<uint32_t>(queue_infos.size());
     info.pQueueCreateInfos = queue_infos.data();
 
     VkDevice device;

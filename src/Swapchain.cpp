@@ -26,7 +26,7 @@ Swapchain Swapchain::create(RenderingContext& ctx, Window& window) {
     VkSwapchainCreateInfoKHR info{};
     info.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
     info.surface = swapchain.surface;
-    info.minImageCount = swapchain.images.size();
+    info.minImageCount = static_cast<uint32_t>(swapchain.images.size());
     info.imageFormat = swapchain.surface_format.format;
     info.imageColorSpace = swapchain.surface_format.colorSpace;
     info.imageExtent = swapchain.extent;
@@ -39,7 +39,7 @@ Swapchain Swapchain::create(RenderingContext& ctx, Window& window) {
     }
     else {
         info.imageSharingMode = VK_SHARING_MODE_CONCURRENT;
-        info.queueFamilyIndexCount = families.size();
+        info.queueFamilyIndexCount = static_cast<uint32_t>(families.size());
         info.pQueueFamilyIndices = families.data();
     }
 
@@ -87,12 +87,12 @@ static void configureSettings(RenderingContext& ctx, Window& window, Swapchain& 
     if (caps.currentExtent.width == UINT32_MAX) {
         const std::pair<size_t, size_t> window_extent = window.getSize();
         swapchain.extent.width = clamp<uint32_t>(
-            window_extent.first,
+            static_cast<uint32_t>(window_extent.first),
             caps.minImageExtent.width,
             caps.maxImageExtent.width
         );
         swapchain.extent.height = clamp<uint32_t>(
-            window_extent.second,
+            static_cast<uint32_t>(window_extent.second),
             caps.minImageExtent.height,
             caps.maxImageExtent.height
         );
