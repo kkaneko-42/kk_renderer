@@ -20,7 +20,8 @@ static uint32_t findQueueFamily(
 );
 static VkQueue getQueue(VkDevice device, uint32_t family);
 static VkCommandPool createCommandPool(VkDevice device, uint32_t dst_queue_family);
-static std::array<VkFence, kAsyncRenderingCount> createFences(VkDevice device);
+static std::array<VkFence, kMaxConcurrentFrames> createFences(VkDevice device);
+static std::array<VkSemaphore, kMaxConcurrentFrames> createSemaphores(VkDevice device);
 
 RenderingContext RenderingContext::create() {
     std::vector<const char*> instance_exts = Window::getRequiredExtensions();
@@ -45,13 +46,19 @@ RenderingContext RenderingContext::create() {
     ctx.present_queue = getQueue(ctx.device, ctx.present_family);
     ctx.cmd_pool = createCommandPool(ctx.device, ctx.graphics_family);
     ctx.fences = createFences(ctx.device);
+    ctx.present_complete = createSemaphores(ctx.device);
+    ctx.render_complete = createSemaphores(ctx.device);
 
     return ctx;
 }
 
 void RenderingContext::destroy() {
-    for (const auto& fence : fences) {
-        vkDestroyFence(device, fence, nullptr);
+    assert(vkDeviceWaitIdle(device) == VK_SUCCESS);
+
+    for (size_t i = 0; i < kMaxConcurrentFrames; ++i) {
+        vkDestroyFence(device, fences[i], nullptr);
+        vkDestroySemaphore(device, render_complete[i], nullptr);
+        vkDestroySemaphore(device, present_complete[i], nullptr);
     }
 
     vkDestroyCommandPool(device, cmd_pool, nullptr);
@@ -220,15 +227,47 @@ static VkCommandPool createCommandPool(VkDevice device, uint32_t dst_queue_famil
     return pool;
 }
 
-static std::array<VkFence, kAsyncRenderingCount> createFences(VkDevice device) {
+static std::array<VkFence, kMaxConcurrentFrames> createFences(VkDevice device) {
     VkFenceCreateInfo info{};
     info.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
     info.flags = VK_FENCE_CREATE_SIGNALED_BIT;
 
-    std::array<VkFence, kAsyncRenderingCount> fences;
-    for (size_t i = 0; i < kAsyncRenderingCount; ++i) {
+    std::array<VkFence, kMaxConcurrentFrames> fences;
+    for (size_t i = 0; i < kMaxConcurrentFrames; ++i) {
         assert(vkCreateFence(device, &info, nullptr, &fences[i]) == VK_SUCCESS);
     }
 
     return fences;
+}
+
+static std::array<VkSemaphore, kMaxConcurrentFrames> createSemaphores(VkDevice device) {
+    VkSemaphoreCreateInfo info{};
+    info.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
+
+    std::array<VkSemaphore, kMaxConcurrentFrames> semaphores;
+    for (size_t i = 0; i < kMaxConcurrentFrames; ++i) {
+        assert(vkCreateSemaphore(device, &info, nullptr, &semaphores[i]) == VK_SUCCESS);
+    }
+
+    return semaphores;
+}
+
+VkImageView RenderingContext::createImageView(VkImage image, VkFormat format, VkImageAspectFlags aspectFlags) {
+    VkImageViewCreateInfo viewInfo{};
+    viewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+    viewInfo.image = image;
+    viewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+    viewInfo.format = format;
+    viewInfo.subresourceRange.aspectMask = aspectFlags;
+    viewInfo.subresourceRange.baseMipLevel = 0;
+    viewInfo.subresourceRange.levelCount = 1;
+    viewInfo.subresourceRange.baseArrayLayer = 0;
+    viewInfo.subresourceRange.layerCount = 1;
+
+    VkImageView imageView;
+    if (vkCreateImageView(device, &viewInfo, nullptr, &imageView) != VK_SUCCESS) {
+        throw std::runtime_error("failed to create texture image view!");
+    }
+
+    return imageView;
 }

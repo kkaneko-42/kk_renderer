@@ -6,7 +6,7 @@
 
 namespace kk {
     namespace renderer {
-        constexpr size_t kAsyncRenderingCount = 3;
+        constexpr size_t kMaxConcurrentFrames = 3;
 
         struct RenderingContext {
             VkInstance instance;
@@ -16,10 +16,13 @@ namespace kk {
             VkDevice device;
             VkQueue graphics_queue, present_queue;
             VkCommandPool cmd_pool;
-            std::array<VkFence, kAsyncRenderingCount> fences;
+            std::array<VkFence, kMaxConcurrentFrames> fences;
+            std::array<VkSemaphore, kMaxConcurrentFrames> render_complete;
+            std::array<VkSemaphore, kMaxConcurrentFrames> present_complete;
 
             static RenderingContext create();
             void destroy();
+            VkImageView createImageView(VkImage image, VkFormat format, VkImageAspectFlags aspectFlags);
         };
     }
 }

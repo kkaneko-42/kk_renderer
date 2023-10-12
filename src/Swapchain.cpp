@@ -55,10 +55,19 @@ Swapchain Swapchain::create(RenderingContext& ctx, Window& window) {
     swapchain.images.resize(img_count);
     vkGetSwapchainImagesKHR(ctx.device, swapchain.swapchain, &img_count, swapchain.images.data());
 
+    swapchain.views.resize(img_count);
+    for (uint32_t i = 0; i < img_count; ++i) {
+        swapchain.views[i] = ctx.createImageView(swapchain.images[i], swapchain.surface_format.format, VK_IMAGE_ASPECT_COLOR_BIT);
+    }
+
     return swapchain;
 }
 
 void Swapchain::destroy(RenderingContext& ctx) {
+    for (size_t i = 0; i < images.size(); ++i) {
+        vkDestroyImageView(ctx.device, views[i], nullptr);
+    }
+
     vkDestroySwapchainKHR(ctx.device, swapchain, nullptr);
     vkDestroySurfaceKHR(ctx.instance, surface, nullptr);
 }

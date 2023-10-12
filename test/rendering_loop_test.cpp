@@ -44,3 +44,24 @@ TEST(RenderingLoopTest, SwapchainCreation) {
     ctx.destroy();
     window.destroy();
 }
+
+TEST(RenderingLoopTest, RenderingLoop) {
+    const std::pair<size_t, size_t> size = { 800, 800 };
+    const std::string name = "rendering loop test";
+    Window window = Window::create(size.first, size.second, name);
+    RenderingContext ctx = RenderingContext::create();
+    Swapchain swapchain = Swapchain::create(ctx, window);
+
+    Renderer renderer = Renderer::create(ctx);
+    while (!window.isClosed()) {
+        window.pollEvents();
+        if (renderer.beginFrame(ctx, swapchain)) {
+            // Record command buffer
+            renderer.endFrame(ctx, swapchain);
+        }
+    }
+
+    swapchain.destroy(ctx);
+    ctx.destroy();
+    window.destroy();
+}
