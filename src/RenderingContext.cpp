@@ -27,7 +27,9 @@ RenderingContext RenderingContext::create() {
     const std::vector<const char*> layers = {
         "VK_LAYER_KHRONOS_validation",
     };
-    const std::vector<const char*> device_exts = {};
+    const std::vector<const char*> device_exts = {
+        VK_KHR_SWAPCHAIN_EXTENSION_NAME,
+    };
 
     RenderingContext ctx{};
     ctx.instance = createInstance(instance_exts, layers);
