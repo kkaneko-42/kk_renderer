@@ -10,11 +10,12 @@
 
 using namespace kk::renderer;
 
-static VkRenderPass createRenderPass(RenderingContext& ctx, VkFormat swapchain_format /* TODO: remove swapchain_format */);
+static VkRenderPass createRenderPass(RenderingContext& ctx, VkFormat swapchain_format);
 static VkPipelineLayout createPipelineLayout(RenderingContext& ctx);
 static VkPipeline createPipeline(RenderingContext& ctx, VkPipelineLayout layout, VkRenderPass render_pass);
+static std::array<VkFramebuffer, kMaxConcurrentFrames> createFramebuffers(RenderingContext& ctx, Swapchain& swapchain, VkRenderPass render_pass);
 
-Renderer Renderer::create(RenderingContext& ctx, VkFormat swapchain_format /* TODO: remove swapchain_format */) {
+Renderer Renderer::create(RenderingContext& ctx, Swapchain& swapchain) {
     Renderer renderer{};
     renderer.current_frame_ = renderer.img_idx_ = 0;
     
@@ -25,14 +26,19 @@ Renderer Renderer::create(RenderingContext& ctx, VkFormat swapchain_format /* TO
     alloc_info.commandBufferCount = kMaxConcurrentFrames;
     assert(vkAllocateCommandBuffers(ctx.device, &alloc_info, renderer.cmd_bufs_.data()) == VK_SUCCESS);
 
-    renderer.render_pass_ = createRenderPass(ctx, swapchain_format);
+    renderer.render_pass_ = createRenderPass(ctx, swapchain.surface_format.format);
     renderer.pipeline_layout_ = createPipelineLayout(ctx);
     renderer.pipeline_ = createPipeline(ctx, renderer.pipeline_layout_, renderer.render_pass_);
+    renderer.framebuffers_ = createFramebuffers(ctx, swapchain, renderer.render_pass_);
 
     return renderer;
 }
 
 void Renderer::destroy(RenderingContext& ctx) {
+    for (auto& framebuffer : framebuffers_) {
+        vkDestroyFramebuffer(ctx.device, framebuffer, nullptr);
+    }
+
     vkDestroyPipeline(ctx.device, pipeline_, nullptr);
     vkDestroyPipelineLayout(ctx.device, pipeline_layout_, nullptr);
     vkDestroyRenderPass(ctx.device, render_pass_, nullptr);
@@ -91,7 +97,7 @@ void Renderer::endFrame(RenderingContext& ctx, Swapchain& swapchain) {
     present_info.pWaitSemaphores = &ctx.render_complete[current_frame_];
     present_info.swapchainCount = 1;
     present_info.pSwapchains = &swapchain.swapchain;
-    present_info.pImageIndices = &img_idx_; // TODO
+    present_info.pImageIndices = &img_idx_; // CONCERN
 
     ret = vkQueuePresentKHR(ctx.present_queue, &present_info);
     if (ret == VK_ERROR_OUT_OF_DATE_KHR || ret == VK_SUBOPTIMAL_KHR) {
@@ -285,4 +291,26 @@ static VkPipeline createPipeline(RenderingContext& ctx, VkPipelineLayout layout,
     vkDestroyShaderModule(ctx.device, frag_module, nullptr);
 
     return pipeline;
+}
+
+static std::array<VkFramebuffer, kMaxConcurrentFrames> createFramebuffers(RenderingContext& ctx, Swapchain& swapchain, VkRenderPass render_pass) {
+    std::array<VkFramebuffer, kMaxConcurrentFrames> framebuffers;
+    for (size_t i = 0; i < kMaxConcurrentFrames; i++) {
+        VkImageView attachments[] = {
+            swapchain.views[i]
+        };
+
+        VkFramebufferCreateInfo framebufferInfo{};
+        framebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+        framebufferInfo.renderPass = render_pass;
+        framebufferInfo.attachmentCount = 1;
+        framebufferInfo.pAttachments = attachments;
+        framebufferInfo.width = swapchain.extent.width;
+        framebufferInfo.height = swapchain.extent.height;
+        framebufferInfo.layers = 1;
+
+        assert(vkCreateFramebuffer(ctx.device, &framebufferInfo, nullptr, &framebuffers[i]) == VK_SUCCESS);
+    }
+
+    return framebuffers;
 }

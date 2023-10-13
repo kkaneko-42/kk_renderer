@@ -7,7 +7,7 @@ namespace kk {
     namespace renderer {
         class Renderer {
         public:
-            static Renderer create(RenderingContext& ctx, VkFormat swapchain_format /* TODO: remove swapchain_format */);
+            static Renderer create(RenderingContext& ctx, Swapchain& swapchain);
             void destroy(RenderingContext& ctx);
 
             bool beginFrame(RenderingContext& ctx, Swapchain& swapchain);
@@ -17,6 +17,7 @@ namespace kk {
             VkRenderPass render_pass_;
             VkPipelineLayout pipeline_layout_;
             VkPipeline pipeline_;
+            std::array<VkFramebuffer, kMaxConcurrentFrames> framebuffers_; // CONCERN
             std::array<VkCommandBuffer, kMaxConcurrentFrames> cmd_bufs_;
             size_t current_frame_;
             uint32_t img_idx_;

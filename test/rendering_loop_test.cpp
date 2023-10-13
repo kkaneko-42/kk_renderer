@@ -52,7 +52,7 @@ TEST(RenderingLoopTest, RendererCreation) {
     RenderingContext ctx = RenderingContext::create();
     Swapchain swapchain = Swapchain::create(ctx, window);
 
-    Renderer renderer = Renderer::create(ctx, swapchain.surface_format.format);
+    Renderer renderer = Renderer::create(ctx, swapchain);
 
     renderer.destroy(ctx);
     swapchain.destroy(ctx);
