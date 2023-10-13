@@ -4,7 +4,9 @@
 
 using namespace kk::renderer;
 
-Renderer Renderer::create(RenderingContext& ctx) {
+VkRenderPass createRenderPass(RenderingContext& ctx, VkFormat swapchain_format /* TODO: remove swapchain_format */);
+
+Renderer Renderer::create(RenderingContext& ctx, VkFormat swapchain_format /* TODO: remove swapchain_format */) {
     Renderer renderer{};
     renderer.current_frame_ = renderer.img_idx_ = 0;
     
@@ -15,7 +17,13 @@ Renderer Renderer::create(RenderingContext& ctx) {
     alloc_info.commandBufferCount = kMaxConcurrentFrames;
     assert(vkAllocateCommandBuffers(ctx.device, &alloc_info, renderer.cmd_bufs_.data()) == VK_SUCCESS);
 
+    renderer.render_pass_ = createRenderPass(ctx, swapchain_format);
+
     return renderer;
+}
+
+void Renderer::destroy(RenderingContext& ctx) {
+    vkDestroyRenderPass(ctx.device, render_pass_, nullptr);
 }
 
 bool Renderer::beginFrame(RenderingContext& ctx, Swapchain& swapchain) {
@@ -82,4 +90,47 @@ void Renderer::endFrame(RenderingContext& ctx, Swapchain& swapchain) {
     }
 
     current_frame_ = (current_frame_ + 1) % kMaxConcurrentFrames;
+}
+
+VkRenderPass createRenderPass(RenderingContext& ctx, VkFormat swapchain_format /* TODO: remove swapchain_format */) {
+    VkAttachmentDescription color_attachment{};
+    color_attachment.format = swapchain_format;
+    color_attachment.samples = VK_SAMPLE_COUNT_1_BIT;
+    color_attachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+    color_attachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+    color_attachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+    color_attachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+    color_attachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+    color_attachment.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+
+    VkAttachmentReference color_attachment_ref{};
+    color_attachment_ref.attachment = 0;
+    color_attachment_ref.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+
+    VkSubpassDescription subpass{};
+    subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+    subpass.colorAttachmentCount = 1;
+    subpass.pColorAttachments = &color_attachment_ref;
+
+    VkSubpassDependency deps{};
+    deps.srcSubpass = VK_SUBPASS_EXTERNAL;
+    deps.dstSubpass = 0;
+    deps.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+    deps.srcAccessMask = 0;
+    deps.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+    deps.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+
+    VkRenderPassCreateInfo renderPassInfo{};
+    renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
+    renderPassInfo.attachmentCount = 1;
+    renderPassInfo.pAttachments = &color_attachment;
+    renderPassInfo.subpassCount = 1;
+    renderPassInfo.pSubpasses = &subpass;
+    renderPassInfo.dependencyCount = 1;
+    renderPassInfo.pDependencies = &deps;
+
+    VkRenderPass render_pass;
+    assert(vkCreateRenderPass(ctx.device, &renderPassInfo, nullptr, &render_pass) == VK_SUCCESS);
+
+    return render_pass;
 }
