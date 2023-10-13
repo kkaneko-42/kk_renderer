@@ -1,14 +1,11 @@
 #pragma once
 
-#include <glm/glm.hpp>
+#include "Vec3.h"
+#include "Vec4.h"
 #include <vulkan/vulkan.h>
 #include <array>
 
 namespace kk {
-    // Math lib mock
-    using Vec3 = glm::vec3;
-    using Vec4 = glm::vec4;
-
     namespace renderer {
         struct Vertex {
             Vec3 position;
