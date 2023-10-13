@@ -15,6 +15,8 @@ namespace kk {
 
         private:
             VkRenderPass render_pass_;
+            VkPipelineLayout pipeline_layout_;
+            VkPipeline pipeline_;
             std::array<VkCommandBuffer, kMaxConcurrentFrames> cmd_bufs_;
             size_t current_frame_;
             uint32_t img_idx_;

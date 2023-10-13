@@ -1,10 +1,13 @@
 #include "kk_renderer/Renderer.h"
 #include <cassert>
 #include <iostream>
+#include <fstream>
 
 using namespace kk::renderer;
 
-VkRenderPass createRenderPass(RenderingContext& ctx, VkFormat swapchain_format /* TODO: remove swapchain_format */);
+static VkRenderPass createRenderPass(RenderingContext& ctx, VkFormat swapchain_format /* TODO: remove swapchain_format */);
+static VkPipelineLayout createPipelineLayout(RenderingContext& ctx);
+static VkPipeline createPipeline(RenderingContext& ctx, VkPipelineLayout layout, VkRenderPass render_pass);
 
 Renderer Renderer::create(RenderingContext& ctx, VkFormat swapchain_format /* TODO: remove swapchain_format */) {
     Renderer renderer{};
@@ -18,6 +21,8 @@ Renderer Renderer::create(RenderingContext& ctx, VkFormat swapchain_format /* TO
     assert(vkAllocateCommandBuffers(ctx.device, &alloc_info, renderer.cmd_bufs_.data()) == VK_SUCCESS);
 
     renderer.render_pass_ = createRenderPass(ctx, swapchain_format);
+    renderer.pipeline_layout_ = createPipelineLayout(ctx);
+    renderer.pipeline_ = createPipeline(ctx, renderer.pipeline_layout_, renderer.render_pass_);
 
     return renderer;
 }
@@ -92,7 +97,7 @@ void Renderer::endFrame(RenderingContext& ctx, Swapchain& swapchain) {
     current_frame_ = (current_frame_ + 1) % kMaxConcurrentFrames;
 }
 
-VkRenderPass createRenderPass(RenderingContext& ctx, VkFormat swapchain_format /* TODO: remove swapchain_format */) {
+static VkRenderPass createRenderPass(RenderingContext& ctx, VkFormat swapchain_format /* TODO: remove swapchain_format */) {
     VkAttachmentDescription color_attachment{};
     color_attachment.format = swapchain_format;
     color_attachment.samples = VK_SAMPLE_COUNT_1_BIT;
@@ -133,4 +138,138 @@ VkRenderPass createRenderPass(RenderingContext& ctx, VkFormat swapchain_format /
     assert(vkCreateRenderPass(ctx.device, &renderPassInfo, nullptr, &render_pass) == VK_SUCCESS);
 
     return render_pass;
+}
+
+static std::string readFile(const std::string& path) {
+    std::ifstream ifs(path);
+    if (!ifs) {
+        std::cerr << "Error: could not open " + path << std::endl;
+        assert(false);
+    }
+
+    std::string content;
+    ifs >> content;
+    return content;
+}
+
+static VkShaderModule createShaderModule(RenderingContext& ctx, const std::string& code) {
+    VkShaderModuleCreateInfo info{};
+    info.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
+    info.codeSize = static_cast<uint32_t>(code.size());
+    info.pCode = reinterpret_cast<const uint32_t*>(code.data());
+    
+    VkShaderModule shader;
+    assert(vkCreateShaderModule(ctx.device, &info, nullptr, &shader) == VK_SUCCESS);
+    return shader;
+}
+
+static VkPipelineLayout createPipelineLayout(RenderingContext& ctx) {
+    VkPipelineLayoutCreateInfo info{};
+    info.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+    info.setLayoutCount = 0;
+    info.pushConstantRangeCount = 0;
+
+    VkPipelineLayout layout;
+    assert(vkCreatePipelineLayout(ctx.device, &info, nullptr, &layout) == VK_SUCCESS);
+    return layout;
+}
+
+static VkPipeline createPipeline(RenderingContext& ctx, VkPipelineLayout layout, VkRenderPass render_pass) {
+    auto vert_code = readFile("resources/shaders/triangle_vert.spv");
+    auto frag_code = readFile("resources/shaders/triangle_frag.spv");
+
+    VkShaderModule vert_module = createShaderModule(ctx, vert_code);
+    VkShaderModule frag_module = createShaderModule(ctx, frag_code);
+
+    VkPipelineShaderStageCreateInfo vert_info{};
+    vert_info.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+    vert_info.stage = VK_SHADER_STAGE_VERTEX_BIT;
+    vert_info.module = vert_module;
+    vert_info.pName = "main";
+
+    VkPipelineShaderStageCreateInfo frag_info{};
+    frag_info.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+    frag_info.stage = VK_SHADER_STAGE_FRAGMENT_BIT;
+    frag_info.module = frag_module;
+    frag_info.pName = "main";
+
+    VkPipelineShaderStageCreateInfo shaderStages[] = { vert_info, frag_info };
+
+    VkPipelineVertexInputStateCreateInfo vert_input{};
+    vert_input.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
+    vert_input.vertexBindingDescriptionCount = 0;
+    vert_input.vertexAttributeDescriptionCount = 0;
+
+    VkPipelineInputAssemblyStateCreateInfo input_asm{};
+    input_asm.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
+    input_asm.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+    input_asm.primitiveRestartEnable = VK_FALSE;
+
+    VkPipelineViewportStateCreateInfo viewport{};
+    viewport.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
+    viewport.viewportCount = 1;
+    viewport.scissorCount = 1;
+
+    VkPipelineRasterizationStateCreateInfo rasterizer{};
+    rasterizer.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
+    rasterizer.depthClampEnable = VK_FALSE;
+    rasterizer.rasterizerDiscardEnable = VK_FALSE;
+    rasterizer.polygonMode = VK_POLYGON_MODE_FILL;
+    rasterizer.lineWidth = 1.0f;
+    rasterizer.cullMode = VK_CULL_MODE_BACK_BIT;
+    rasterizer.frontFace = VK_FRONT_FACE_CLOCKWISE;
+    rasterizer.depthBiasEnable = VK_FALSE;
+
+    VkPipelineMultisampleStateCreateInfo multisampling{};
+    multisampling.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
+    multisampling.sampleShadingEnable = VK_FALSE;
+    multisampling.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
+
+    VkPipelineColorBlendAttachmentState color_blend_attachment{};
+    color_blend_attachment.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
+    color_blend_attachment.blendEnable = VK_FALSE;
+
+    VkPipelineColorBlendStateCreateInfo color_blending{};
+    color_blending.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
+    color_blending.logicOpEnable = VK_FALSE;
+    color_blending.logicOp = VK_LOGIC_OP_COPY;
+    color_blending.attachmentCount = 1;
+    color_blending.pAttachments = &color_blend_attachment;
+    color_blending.blendConstants[0] = 0.0f;
+    color_blending.blendConstants[1] = 0.0f;
+    color_blending.blendConstants[2] = 0.0f;
+    color_blending.blendConstants[3] = 0.0f;
+
+    std::vector<VkDynamicState> dynamic_states = {
+        VK_DYNAMIC_STATE_VIEWPORT,
+        VK_DYNAMIC_STATE_SCISSOR
+    };
+    VkPipelineDynamicStateCreateInfo dynamicState{};
+    dynamicState.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
+    dynamicState.dynamicStateCount = static_cast<uint32_t>(dynamic_states.size());
+    dynamicState.pDynamicStates = dynamic_states.data();
+
+    VkGraphicsPipelineCreateInfo pipelineInfo{};
+    pipelineInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
+    pipelineInfo.stageCount = 2;
+    pipelineInfo.pStages = shaderStages;
+    pipelineInfo.pVertexInputState = &vert_input;
+    pipelineInfo.pInputAssemblyState = &input_asm;
+    pipelineInfo.pViewportState = &viewport;
+    pipelineInfo.pRasterizationState = &rasterizer;
+    pipelineInfo.pMultisampleState = &multisampling;
+    pipelineInfo.pColorBlendState = &color_blending;
+    pipelineInfo.pDynamicState = &dynamicState;
+    pipelineInfo.layout = layout;
+    pipelineInfo.renderPass = render_pass;
+    pipelineInfo.subpass = 0;
+    pipelineInfo.basePipelineHandle = VK_NULL_HANDLE;
+
+    VkPipeline pipeline;
+    assert(vkCreateGraphicsPipelines(ctx.device, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &pipeline) == VK_SUCCESS);
+
+    vkDestroyShaderModule(ctx.device, vert_module, nullptr);
+    vkDestroyShaderModule(ctx.device, frag_module, nullptr);
+
+    return pipeline;
 }
