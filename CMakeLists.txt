@@ -7,6 +7,7 @@ set(SRCS
     src/Window.cpp
     src/Swapchain.cpp
 	src/Renderer.cpp
+	src/Texture.cpp
 )
 
 add_library(${PROJECT_NAME} STATIC ${SRCS})

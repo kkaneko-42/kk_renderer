@@ -70,6 +70,21 @@ void RenderingContext::destroy() {
     vkDestroyInstance(instance, nullptr);
 }
 
+uint32_t RenderingContext::findMemoryType(uint32_t type_filter, VkMemoryPropertyFlags props) {
+    VkPhysicalDeviceMemoryProperties memProperties;
+    vkGetPhysicalDeviceMemoryProperties(gpu, &memProperties);
+
+    for (uint32_t i = 0; i < memProperties.memoryTypeCount; i++) {
+        if ((type_filter & (1 << i)) && (memProperties.memoryTypes[i].propertyFlags & props) == props) {
+            return i;
+        }
+    }
+
+    std::cerr << "Error: Memory property " << props << " not found" << std::endl;
+    assert(false);
+    return UINT32_MAX;
+}
+
 static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(
     VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
     VkDebugUtilsMessageTypeFlagsEXT messageType,
