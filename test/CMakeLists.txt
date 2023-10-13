@@ -39,3 +39,13 @@ elseif (MSVC)
 else (UNIX)
     message(FATAL_ERROR "fatal: unknown build platform")
 endif (UNIX)
+
+add_custom_command(
+    TARGET ${PROJECT_NAME}
+    POST_BUILD
+    COMMAND
+        python3
+        ${kk_renderer_SOURCE_DIR}/resources/shaders/compile_shader.py
+        ${kk_renderer_SOURCE_DIR}/resources/shaders
+        glslc
+)
