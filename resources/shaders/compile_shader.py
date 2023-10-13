@@ -1,4 +1,4 @@
-import sys, os, glob, subprocess
+import sys, glob, subprocess
 
 USAGE = "Usage: python {} <SHADERS_DIR> <COMPILER_PATH>".format(__file__)
 
