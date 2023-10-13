@@ -1,6 +1,8 @@
 #pragma once
 
 #include <glm/glm.hpp>
+#include <vulkan/vulkan.h>
+#include <array>
 
 namespace kk {
     // Math lib mock
@@ -11,6 +13,9 @@ namespace kk {
         struct Vertex {
             Vec3 position;
             Vec4 color;
+
+            static VkVertexInputBindingDescription getBindingDescription();
+            static std::array<VkVertexInputAttributeDescription, 2> getAttributeDescriptions();
         };
     }
 }

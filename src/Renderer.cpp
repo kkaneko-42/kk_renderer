@@ -66,16 +66,48 @@ bool Renderer::beginFrame(RenderingContext& ctx, Swapchain& swapchain) {
         return false;
     }
 
-    ret = vkResetCommandBuffer(cmd_bufs_[current_frame_], 0);
+    VkCommandBuffer current_buf = cmd_bufs_[current_frame_];
+    ret = vkResetCommandBuffer(current_buf, 0);
     if (ret != VK_SUCCESS) {
         // NOTE: ret == VK_ERROR_OUT_OF_DEVICE_MEMORY
         return false;
     }
 
+    // Begin comamnd buffer
+    VkCommandBufferBeginInfo begin_info{};
+    begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+    assert(vkBeginCommandBuffer(current_buf, &begin_info) == VK_SUCCESS);
+
+    // Begin render pass
+    VkRenderPassBeginInfo render_pass_info{};
+    render_pass_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+    render_pass_info.renderPass = render_pass_;
+    render_pass_info.framebuffer = framebuffers_[img_idx_];
+    render_pass_info.renderArea.extent = swapchain.extent;
+    VkClearValue clear_color = { {0.0f, 0.0f, 0.0f, 1.0f} };
+    render_pass_info.clearValueCount = 1;
+    render_pass_info.pClearValues = &clear_color;
+    vkCmdBeginRenderPass(current_buf, &render_pass_info, VK_SUBPASS_CONTENTS_INLINE);
+
+    // Set viewport
+    VkViewport viewport{};
+    viewport.width = static_cast<float>(swapchain.extent.width);
+    viewport.height = static_cast<float>(swapchain.extent.height);
+    viewport.maxDepth = 1.0f;
+    vkCmdSetViewport(current_buf, 0, 1, &viewport);
+
+    // Set scissor
+    VkRect2D scissor{};
+    scissor.extent = swapchain.extent;
+    vkCmdSetScissor(current_buf, 0, 1, &scissor);
+
     return true;
 }
 
 void Renderer::endFrame(RenderingContext& ctx, Swapchain& swapchain) {
+    vkCmdEndRenderPass(cmd_bufs_[current_frame_]);
+    assert(vkEndCommandBuffer(cmd_bufs_[current_frame_]) == VK_SUCCESS);
+
     VkSubmitInfo submit_info{};
     submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
     submit_info.waitSemaphoreCount = 1;
@@ -112,41 +144,23 @@ void Renderer::endFrame(RenderingContext& ctx, Swapchain& swapchain) {
     current_frame_ = (current_frame_ + 1) % kMaxConcurrentFrames;
 }
 
-void Renderer::recordCommands(Swapchain& swapchain) {
-    VkCommandBuffer cmd_buf = cmd_bufs_[current_frame_];
-    VkFramebuffer framebuffer = framebuffers_[img_idx_];
+void Renderer::recordCommands() {
+    VkCommandBuffer current_buf = cmd_bufs_[current_frame_];
 
-    VkCommandBufferBeginInfo begin_info{};
-    begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-    assert(vkBeginCommandBuffer(cmd_buf, &begin_info) == VK_SUCCESS);
+    vkCmdBindPipeline(current_buf, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline_);
+    vkCmdDraw(current_buf, 3, 1, 0, 0);
+}
 
-    VkRenderPassBeginInfo render_pass_info{};
-    render_pass_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-    render_pass_info.renderPass = render_pass_;
-    render_pass_info.framebuffer = framebuffer;
-    render_pass_info.renderArea.extent = swapchain.extent;
-    VkClearValue clear_color = { {0.0f, 0.0f, 0.0f, 1.0f} };
-    render_pass_info.clearValueCount = 1;
-    render_pass_info.pClearValues = &clear_color;
+void Renderer::render(const Geometry& geometry) {
+    VkCommandBuffer current_buf = cmd_bufs_[current_frame_];
 
-    vkCmdBeginRenderPass(cmd_buf, &render_pass_info, VK_SUBPASS_CONTENTS_INLINE); {
-        vkCmdBindPipeline(cmd_buf, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline_);
+    vkCmdBindPipeline(current_buf, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline_);
 
-        VkViewport viewport{};
-        viewport.width = static_cast<float>(swapchain.extent.width);
-        viewport.height = static_cast<float>(swapchain.extent.height);
-        viewport.maxDepth = 1.0f;
-        vkCmdSetViewport(cmd_buf, 0, 1, &viewport);
+    VkDeviceSize offsets[] = { 0 };
+    vkCmdBindVertexBuffers(current_buf, 0, 1, &geometry.vertex_buffer.buffer, offsets);
+    vkCmdBindIndexBuffer(current_buf, geometry.index_buffer.buffer, 0, VK_INDEX_TYPE_UINT32);
 
-        VkRect2D scissor{};
-        scissor.extent = swapchain.extent;
-        vkCmdSetScissor(cmd_buf, 0, 1, &scissor);
-
-        vkCmdDraw(cmd_buf, 3, 1, 0, 0);
-    }
-    vkCmdEndRenderPass(cmd_buf);
-
-    assert(vkEndCommandBuffer(cmd_buf) == VK_SUCCESS);
+    vkCmdDrawIndexed(current_buf, static_cast<uint32_t>(geometry.indices.size()), 1, 0, 0, 0);
 }
 
 static VkRenderPass createRenderPass(RenderingContext& ctx, VkFormat swapchain_format /* TODO: remove swapchain_format */) {
@@ -253,10 +267,14 @@ static VkPipeline createPipeline(RenderingContext& ctx, VkPipelineLayout layout,
 
     VkPipelineShaderStageCreateInfo shaderStages[] = { vert_info, frag_info };
 
+    const auto binding_desc = Vertex::getBindingDescription();
+    const auto attr_desc = Vertex::getAttributeDescriptions();
     VkPipelineVertexInputStateCreateInfo vert_input{};
     vert_input.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
-    vert_input.vertexBindingDescriptionCount = 0;
-    vert_input.vertexAttributeDescriptionCount = 0;
+    vert_input.vertexBindingDescriptionCount = 1;
+    vert_input.pVertexBindingDescriptions = &binding_desc;
+    vert_input.vertexAttributeDescriptionCount = static_cast<uint32_t>(attr_desc.size());
+    vert_input.pVertexAttributeDescriptions = attr_desc.data();
 
     VkPipelineInputAssemblyStateCreateInfo input_asm{};
     input_asm.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;

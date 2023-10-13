@@ -33,6 +33,7 @@ Buffer Buffer::create(RenderingContext& ctx, VkDeviceSize size, VkBufferUsageFla
 }
 
 void Buffer::destroy(RenderingContext& ctx) {
+    vkDeviceWaitIdle(ctx.device); // CONCERN
     vkFreeMemory(ctx.device, memory, nullptr);
     vkDestroyBuffer(ctx.device, buffer, nullptr);
 }

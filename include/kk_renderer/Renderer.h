@@ -2,6 +2,7 @@
 
 #include "RenderingContext.h"
 #include "Swapchain.h"
+#include "Geometry.h"
 
 namespace kk {
     namespace renderer {
@@ -12,7 +13,8 @@ namespace kk {
 
             bool beginFrame(RenderingContext& ctx, Swapchain& swapchain);
             void endFrame(RenderingContext& ctx, Swapchain& swapchain);
-            void recordCommands(Swapchain& swapchain);
+            void recordCommands();
+            void render(const Geometry& geometry);
 
         private:
             VkRenderPass render_pass_;

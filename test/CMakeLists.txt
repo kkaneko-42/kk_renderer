@@ -8,6 +8,7 @@ set(SRCS
 	draw_triangle_test.cpp
     runner.cpp
 )
+set(SHADERS_DIR ${kk_renderer_SOURCE_DIR}/resources/shaders)
 
 add_executable(${PROJECT_NAME} ${SRCS})
 target_include_directories(${PROJECT_NAME} PRIVATE ${kk_renderer_SOURCE_DIR}/external/vulkan/Include)
@@ -47,7 +48,7 @@ add_custom_command(
     POST_BUILD
     COMMAND
         python
-        ${kk_renderer_SOURCE_DIR}/resources/shaders/compile_shader.py
-        ${kk_renderer_SOURCE_DIR}/resources/shaders
+        ${SHADERS_DIR}/compile_shader.py
+        ${SHADERS_DIR}
         glslc
 )

@@ -33,25 +33,26 @@ TEST(DrawTriangleTest, GeometryCreation) {
     ctx.destroy();
 }
 
-TEST(DrawTriangleTest, DrawTriangle) {
+TEST(DrawTriangleTest, GeometryDrawing) {
     const std::pair<size_t, size_t> size = { 800, 800 };
     const std::string name = "draw triangle test";
     Window window = Window::create(size.first, size.second, name);
     RenderingContext ctx = RenderingContext::create();
     Swapchain swapchain = Swapchain::create(ctx, window);
 
+    Geometry triangle = Geometry::create(ctx, kTriangleVertices, kTriangleIndices);
     Renderer renderer = Renderer::create(ctx, swapchain);
     while (!window.isClosed()) {
         window.pollEvents();
         if (renderer.beginFrame(ctx, swapchain)) {
-            renderer.recordCommands(swapchain);
+            renderer.render(triangle);
             renderer.endFrame(ctx, swapchain);
         }
     }
 
+    triangle.destroy(ctx);
     renderer.destroy(ctx);
     swapchain.destroy(ctx);
     ctx.destroy();
     window.destroy();
 }
-
