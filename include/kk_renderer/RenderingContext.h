@@ -24,6 +24,8 @@ namespace kk {
             void destroy();
             VkImageView createImageView(VkImage image, VkFormat format, VkImageAspectFlags aspectFlags);
             uint32_t findMemoryType(uint32_t type_filter, VkMemoryPropertyFlags props);
+            VkCommandBuffer beginSingleTimeCommandBuffer();
+            void endSingleTimeCommandBuffer(VkCommandBuffer cmd);
         };
     }
 }

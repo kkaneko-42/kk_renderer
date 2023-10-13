@@ -286,3 +286,34 @@ VkImageView RenderingContext::createImageView(VkImage image, VkFormat format, Vk
 
     return imageView;
 }
+
+VkCommandBuffer RenderingContext::beginSingleTimeCommandBuffer() {
+    VkCommandBufferAllocateInfo alloc_info{};
+    alloc_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+    alloc_info.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+    alloc_info.commandPool = cmd_pool;
+    alloc_info.commandBufferCount = 1;
+
+    VkCommandBuffer cmd_buf;
+    vkAllocateCommandBuffers(device, &alloc_info, &cmd_buf);
+
+    VkCommandBufferBeginInfo begin_info{};
+    begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+    begin_info.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+    vkBeginCommandBuffer(cmd_buf, &begin_info);
+
+    return cmd_buf;
+}
+
+void RenderingContext::endSingleTimeCommandBuffer(VkCommandBuffer cmd_buf) {
+    vkEndCommandBuffer(cmd_buf);
+
+    VkSubmitInfo submit_info{};
+    submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+    submit_info.commandBufferCount = 1;
+    submit_info.pCommandBuffers = &cmd_buf;
+    vkQueueSubmit(graphics_queue, 1, &submit_info, VK_NULL_HANDLE);
+    vkQueueWaitIdle(graphics_queue);
+
+    vkFreeCommandBuffers(device, cmd_pool, 1, &cmd_buf);
+}

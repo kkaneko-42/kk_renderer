@@ -3,6 +3,16 @@
 
 using namespace kk::renderer;
 
+static const std::vector<Vertex> kTriangleVertices = {
+    {{ 0.0f, -0.5f, 0.0f}, {1.0f, 0.0f, 0.0f, 1.0f}},
+    {{ 0.5f,  0.5f, 0.0f}, {0.0f, 1.0f, 0.0f, 1.0f}},
+    {{-0.5f,  0.5f, 0.0f}, {0.0f, 0.0f, 1.0f, 1.0f}},
+};
+
+static const std::vector<uint32_t> kTriangleIndices = {
+    0, 1, 2
+};
+
 TEST(DrawTriangleTest, BufferCreation) {
     RenderingContext ctx = RenderingContext::create();
     Buffer buf = Buffer::create(
@@ -13,6 +23,14 @@ TEST(DrawTriangleTest, BufferCreation) {
     );
 
     buf.destroy(ctx);
+}
+
+TEST(DrawTriangleTest, GeometryCreation) {
+    RenderingContext ctx = RenderingContext::create();
+    Geometry geometry = Geometry::create(ctx, kTriangleVertices, kTriangleIndices);
+
+    geometry.destroy(ctx);
+    ctx.destroy();
 }
 
 TEST(DrawTriangleTest, DrawTriangle) {
