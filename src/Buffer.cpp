@@ -1,6 +1,7 @@
 #include "kk_renderer/Buffer.h"
 #include <iostream>
 #include <cassert>
+#include <cstring>
 
 using namespace kk::renderer;
 
