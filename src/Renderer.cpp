@@ -35,6 +35,8 @@ Renderer Renderer::create(RenderingContext& ctx, Swapchain& swapchain) {
 }
 
 void Renderer::destroy(RenderingContext& ctx) {
+    vkDeviceWaitIdle(ctx.device);
+
     for (auto& framebuffer : framebuffers_) {
         vkDestroyFramebuffer(ctx.device, framebuffer, nullptr);
     }
@@ -108,6 +110,43 @@ void Renderer::endFrame(RenderingContext& ctx, Swapchain& swapchain) {
     }
 
     current_frame_ = (current_frame_ + 1) % kMaxConcurrentFrames;
+}
+
+void Renderer::recordCommands(Swapchain& swapchain) {
+    VkCommandBuffer cmd_buf = cmd_bufs_[current_frame_];
+    VkFramebuffer framebuffer = framebuffers_[img_idx_];
+
+    VkCommandBufferBeginInfo begin_info{};
+    begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+    assert(vkBeginCommandBuffer(cmd_buf, &begin_info) == VK_SUCCESS);
+
+    VkRenderPassBeginInfo render_pass_info{};
+    render_pass_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+    render_pass_info.renderPass = render_pass_;
+    render_pass_info.framebuffer = framebuffer;
+    render_pass_info.renderArea.extent = swapchain.extent;
+    VkClearValue clear_color = { {0.0f, 0.0f, 0.0f, 1.0f} };
+    render_pass_info.clearValueCount = 1;
+    render_pass_info.pClearValues = &clear_color;
+
+    vkCmdBeginRenderPass(cmd_buf, &render_pass_info, VK_SUBPASS_CONTENTS_INLINE); {
+        vkCmdBindPipeline(cmd_buf, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline_);
+
+        VkViewport viewport{};
+        viewport.width = static_cast<float>(swapchain.extent.width);
+        viewport.height = static_cast<float>(swapchain.extent.height);
+        viewport.maxDepth = 1.0f;
+        vkCmdSetViewport(cmd_buf, 0, 1, &viewport);
+
+        VkRect2D scissor{};
+        scissor.extent = swapchain.extent;
+        vkCmdSetScissor(cmd_buf, 0, 1, &scissor);
+
+        vkCmdDraw(cmd_buf, 3, 1, 0, 0);
+    }
+    vkCmdEndRenderPass(cmd_buf);
+
+    assert(vkEndCommandBuffer(cmd_buf) == VK_SUCCESS);
 }
 
 static VkRenderPass createRenderPass(RenderingContext& ctx, VkFormat swapchain_format /* TODO: remove swapchain_format */) {

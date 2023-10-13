@@ -5,6 +5,7 @@ set(CMAKE_CXX_STANDARD 14)
 set(SRCS
     lib_link_test.cpp
     rendering_loop_test.cpp
+	draw_triangle_test.cpp
     runner.cpp
 )
 

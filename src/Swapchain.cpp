@@ -64,6 +64,8 @@ Swapchain Swapchain::create(RenderingContext& ctx, Window& window) {
 }
 
 void Swapchain::destroy(RenderingContext& ctx) {
+    vkDeviceWaitIdle(ctx.device);
+
     for (size_t i = 0; i < images.size(); ++i) {
         vkDestroyImageView(ctx.device, views[i], nullptr);
     }

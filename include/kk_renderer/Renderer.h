@@ -12,6 +12,7 @@ namespace kk {
 
             bool beginFrame(RenderingContext& ctx, Swapchain& swapchain);
             void endFrame(RenderingContext& ctx, Swapchain& swapchain);
+            void recordCommands(Swapchain& swapchain);
 
         private:
             VkRenderPass render_pass_;
