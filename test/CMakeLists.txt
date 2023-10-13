@@ -44,7 +44,7 @@ add_custom_command(
     TARGET ${PROJECT_NAME}
     POST_BUILD
     COMMAND
-        python3
+        python
         ${kk_renderer_SOURCE_DIR}/resources/shaders/compile_shader.py
         ${kk_renderer_SOURCE_DIR}/resources/shaders
         glslc

@@ -17,6 +17,11 @@ target_include_directories(${PROJECT_NAME} PRIVATE ${PROJECT_SOURCE_DIR}/include
 
 if (MSVC)
 	target_compile_options(${PROJECT_NAME} PRIVATE /MTd)
+	# for test purpose
+	target_compile_options(${PROJECT_NAME} PRIVATE /D TEST_RESOURCE_DIR="${PROJECT_SOURCE_DIR}/resources/")
+else (MSVC)
+	# for test purpose
+	target_compile_options(${PROJECT_NAME} PRIVATE -D TEST_RESOURCE_DIR="${PROJECT_SOURCE_DIR}/resources/")
 endif (MSVC)
 
 add_subdirectory(test)

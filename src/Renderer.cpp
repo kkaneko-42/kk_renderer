@@ -2,6 +2,11 @@
 #include <cassert>
 #include <iostream>
 #include <fstream>
+#include <vector>
+
+#ifndef TEST_RESOURCE_DIR
+#define TEST_RESOURCE_DIR "./resources"
+#endif
 
 using namespace kk::renderer;
 
@@ -28,6 +33,8 @@ Renderer Renderer::create(RenderingContext& ctx, VkFormat swapchain_format /* TO
 }
 
 void Renderer::destroy(RenderingContext& ctx) {
+    vkDestroyPipeline(ctx.device, pipeline_, nullptr);
+    vkDestroyPipelineLayout(ctx.device, pipeline_layout_, nullptr);
     vkDestroyRenderPass(ctx.device, render_pass_, nullptr);
 }
 
@@ -140,19 +147,25 @@ static VkRenderPass createRenderPass(RenderingContext& ctx, VkFormat swapchain_f
     return render_pass;
 }
 
-static std::string readFile(const std::string& path) {
-    std::ifstream ifs(path);
-    if (!ifs) {
-        std::cerr << "Error: could not open " + path << std::endl;
-        assert(false);
+static std::vector<char> readFile(const std::string& filename) {
+    std::ifstream file(filename, std::ios::ate | std::ios::binary);
+
+    if (!file.is_open()) {
+        throw std::runtime_error("failed to open file!");
     }
 
-    std::string content;
-    ifs >> content;
-    return content;
+    size_t fileSize = (size_t)file.tellg();
+    std::vector<char> buffer(fileSize);
+
+    file.seekg(0);
+    file.read(buffer.data(), fileSize);
+
+    file.close();
+
+    return buffer;
 }
 
-static VkShaderModule createShaderModule(RenderingContext& ctx, const std::string& code) {
+static VkShaderModule createShaderModule(RenderingContext& ctx, const std::vector<char>& code) {
     VkShaderModuleCreateInfo info{};
     info.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
     info.codeSize = static_cast<uint32_t>(code.size());
@@ -175,8 +188,8 @@ static VkPipelineLayout createPipelineLayout(RenderingContext& ctx) {
 }
 
 static VkPipeline createPipeline(RenderingContext& ctx, VkPipelineLayout layout, VkRenderPass render_pass) {
-    auto vert_code = readFile("resources/shaders/triangle_vert.spv");
-    auto frag_code = readFile("resources/shaders/triangle_frag.spv");
+    auto vert_code = readFile(TEST_RESOURCE_DIR + std::string("shaders/triangle.vert.spv"));
+    auto frag_code = readFile(TEST_RESOURCE_DIR + std::string("shaders/triangle.frag.spv"));
 
     VkShaderModule vert_module = createShaderModule(ctx, vert_code);
     VkShaderModule frag_module = createShaderModule(ctx, frag_code);
