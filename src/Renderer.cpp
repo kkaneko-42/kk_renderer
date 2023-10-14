@@ -205,6 +205,7 @@ std::ostream& operator<<(std::ostream& os, const glm::mat4& mat) {
 void Renderer::render(const Geometry& geometry, const Transform& transform) {
     // Build MVP matrix
     const glm::mat4 model = glm::scale(glm::mat4(1.0f), transform.scale) * glm::mat4_cast(transform.rotation) * glm::translate(glm::mat4(1.0f), transform.position);
+    // NOTE: These should be got from camera
     const glm::mat4 view  = glm::lookAt(glm::vec3(-1.0f, -1.0f, -1.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
     glm::mat4 projection = glm::perspective(glm::radians(45.0f), 4.0f / 3.0f, 0.1f, 10.0f);
     projection[1][1] *= -1;
