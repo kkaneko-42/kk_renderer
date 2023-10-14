@@ -5,6 +5,7 @@
 #include "Geometry.h"
 #include "Transform.h"
 #include "ResourceDescriptor.h"
+#include "Renderable.h"
 
 namespace kk {
     namespace renderer {
@@ -17,16 +18,13 @@ namespace kk {
             void endFrame(RenderingContext& ctx, Swapchain& swapchain);
             void recordCommands();
             void render(const Geometry& geometry);
-            void render(const Geometry& geometry, const Transform& transform);
+            void render(Renderable& renderable);
 
         private:
             VkRenderPass render_pass_;
             VkPipelineLayout pipeline_layout_;
             VkPipeline pipeline_;
             VkDescriptorSetLayout desc_layout_;
-            std::array<VkDescriptorSet, kMaxConcurrentFrames> desc_sets_;
-            Buffer uniform_; // CONCERN: This shouldn't be placed here ?
-            void* mapped_uniform_;
 
             std::array<VkFramebuffer, kMaxConcurrentFrames> framebuffers_; // CONCERN
             std::array<VkCommandBuffer, kMaxConcurrentFrames> cmd_bufs_;

@@ -16,6 +16,7 @@ namespace kk {
             VkDeviceSize size;
             VkBufferUsageFlags usage;
             VkMemoryPropertyFlags memory_props;
+            void* mapped;
         };
     }
 }

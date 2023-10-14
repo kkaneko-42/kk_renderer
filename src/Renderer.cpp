@@ -30,18 +30,9 @@ Renderer Renderer::create(RenderingContext& ctx, Swapchain& swapchain) {
 
     // Prepare uniform buffer and its descriptor
     ResourceDescriptor resources;
-    renderer.uniform_ = Buffer::create(
-        ctx,
-        sizeof(glm::mat4),
-        VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
-    );
-    assert(vkMapMemory(ctx.device, renderer.uniform_.memory, 0, renderer.uniform_.size, 0, &renderer.mapped_uniform_) == VK_SUCCESS);
-    resources.bindBuffer(0, renderer.uniform_, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT);
-    renderer.desc_layout_ = resources.buildLayout(ctx);
-    for (size_t i = 0; i < kMaxConcurrentFrames; ++i) {
-        renderer.desc_sets_[i] = resources.buildSet(ctx, renderer.desc_layout_);
-    }
+    resources.bindBuffer(0, std::make_shared<Buffer>(), VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT);
+    resources.buildLayout(ctx);
+    renderer.desc_layout_ = resources.getLayout();
 
     // Create graphics pipelines and related objects
     renderer.render_pass_ = createRenderPass(ctx, swapchain.surface_format.format);
@@ -58,13 +49,10 @@ void Renderer::destroy(RenderingContext& ctx) {
     for (auto& framebuffer : framebuffers_) {
         vkDestroyFramebuffer(ctx.device, framebuffer, nullptr);
     }
-
+    
     vkDestroyPipeline(ctx.device, pipeline_, nullptr);
     vkDestroyPipelineLayout(ctx.device, pipeline_layout_, nullptr);
     vkDestroyRenderPass(ctx.device, render_pass_, nullptr);
-
-    vkUnmapMemory(ctx.device, uniform_.memory);
-    uniform_.destroy(ctx);
     vkDestroyDescriptorSetLayout(ctx.device, desc_layout_, nullptr);
 
     vkFreeCommandBuffers(
@@ -202,29 +190,34 @@ std::ostream& operator<<(std::ostream& os, const glm::mat4& mat) {
     return os;
 }
 
-void Renderer::render(const Geometry& geometry, const Transform& transform) {
+void Renderer::render(Renderable& renderable) {
     // Build MVP matrix
-    const glm::mat4 model = glm::scale(glm::mat4(1.0f), transform.scale) * glm::mat4_cast(transform.rotation) * glm::translate(glm::mat4(1.0f), transform.position);
-    // NOTE: These should be got from camera
+    const glm::mat4 model = 
+        glm::scale(glm::mat4(1.0f), renderable.transform.scale) *
+        glm::mat4_cast(renderable.transform.rotation) *
+        glm::translate(glm::mat4(1.0f), renderable.transform.position)
+    ;
+    // TODO: These should be got from camera
     const glm::mat4 view  = glm::lookAt(glm::vec3(-1.0f, -1.0f, -1.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
     glm::mat4 projection = glm::perspective(glm::radians(45.0f), 4.0f / 3.0f, 0.1f, 10.0f);
     projection[1][1] *= -1;
     const glm::mat4 mvp = projection * view * model;
 
     // Copy MVP to uniform buffer
-    std::memcpy(mapped_uniform_, &mvp, sizeof(glm::mat4));
+    std::memcpy(renderable.resources[current_frame_].getBuffer(0)->mapped, &mvp, sizeof(glm::mat4));
 
+    VkDescriptorSet set = renderable.resources[current_frame_].getSet();
     vkCmdBindDescriptorSets(
         cmd_bufs_[current_frame_],
         VK_PIPELINE_BIND_POINT_GRAPHICS,
         pipeline_layout_,
         0,
         1,
-        &desc_sets_[current_frame_],
+        &set,
         0,
         nullptr
     );
-    render(geometry);
+    render(renderable.geometry);
 }
 
 static VkRenderPass createRenderPass(RenderingContext& ctx, VkFormat swapchain_format /* TODO: remove swapchain_format */) {

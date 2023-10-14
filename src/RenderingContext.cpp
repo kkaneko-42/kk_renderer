@@ -252,9 +252,10 @@ static VkDescriptorPool createDescPool(VkDevice device) {
 
     VkDescriptorPoolCreateInfo info{};
     info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+    info.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
     info.poolSizeCount = 1;
     info.pPoolSizes = &pool_sizes;
-    info.maxSets = static_cast<uint32_t>(kMaxConcurrentFrames);
+    info.maxSets = static_cast<uint32_t>(kMaxConcurrentFrames) * 256; // TODO: Set max number of objects
 
     VkDescriptorPool pool;
     assert(vkCreateDescriptorPool(device, &info, nullptr, &pool) == VK_SUCCESS);

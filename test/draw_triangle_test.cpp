@@ -67,9 +67,10 @@ TEST(DrawTriangleTest, DescriptorSetCreation) {
     );
 
     ResourceDescriptor resource_descriptor;
-    resource_descriptor.bindBuffer(0, buf, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT);
-    VkDescriptorSetLayout layout = resource_descriptor.buildLayout(ctx);
-    VkDescriptorSet set = resource_descriptor.buildSet(ctx, layout);
+    resource_descriptor.bindBuffer(0, std::make_shared<Buffer>(buf), VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT);
+    resource_descriptor.buildSet(ctx);
+    VkDescriptorSetLayout layout = resource_descriptor.getLayout();
+    VkDescriptorSet set = resource_descriptor.getSet();
 
     vkDestroyDescriptorSetLayout(ctx.device, layout, nullptr);
     buf.destroy(ctx);
@@ -83,18 +84,18 @@ TEST(DrawTriangleTest, TransformedGeometryDrawing) {
     RenderingContext ctx = RenderingContext::create();
     Swapchain swapchain = Swapchain::create(ctx, window);
     
-    Transform transform{};
     Geometry triangle = Geometry::create(ctx, kTriangleVertices, kTriangleIndices);
+    Renderable renderable = Renderable::create(ctx, triangle);
     Renderer renderer = Renderer::create(ctx, swapchain);
     while (!window.isClosed()) {
         window.pollEvents();
         if (renderer.beginFrame(ctx, swapchain)) {
-            transform.rotation = glm::rotate(transform.rotation, 1.0f, glm::vec3(0.0f, 0.0f, 1.0f));
-            renderer.render(triangle, transform);
+            renderer.render(renderable);
             renderer.endFrame(ctx, swapchain);
         }
     }
 
+    renderable.destroy(ctx);
     triangle.destroy(ctx);
     renderer.destroy(ctx);
     swapchain.destroy(ctx);
@@ -110,25 +111,29 @@ TEST(DrawTriangleTest, MultipleTransformDrawing) {
     RenderingContext ctx = RenderingContext::create();
     Swapchain swapchain = Swapchain::create(ctx, window);
 
-    // Create transforms
-    std::vector<Transform> transforms(transform_count);
-    for (size_t i = 0; i < transform_count; ++i) {
-        transforms[i].position.x = (transform_count / 2.0f - i) / 2.0f;
-        transforms[i].scale = glm::vec3(0.5f);
-    }
-
     Geometry triangle = Geometry::create(ctx, kTriangleVertices, kTriangleIndices);
+    // Create renderables
+    std::vector<Renderable> renderables(transform_count);
+    for (size_t i = 0; i < transform_count; ++i) {
+        renderables[i] = Renderable::create(ctx, triangle);
+        renderables[i].transform.position.x = (transform_count / 2.0f - i) / 2.0f;
+        renderables[i].transform.scale = glm::vec3(0.5f);
+    }
+   
     Renderer renderer = Renderer::create(ctx, swapchain);
     while (!window.isClosed()) {
         window.pollEvents();
         if (renderer.beginFrame(ctx, swapchain)) {
-            for (const auto& tf : transforms) {
-                renderer.render(triangle, tf);
+            for (auto& r : renderables) {
+                renderer.render(r);
             }
             renderer.endFrame(ctx, swapchain);
         }
     }
 
+    for (auto& r : renderables) {
+        r.destroy(ctx);
+    }
     triangle.destroy(ctx);
     renderer.destroy(ctx);
     swapchain.destroy(ctx);
