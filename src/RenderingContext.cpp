@@ -20,6 +20,7 @@ static uint32_t findQueueFamily(
 );
 static VkQueue getQueue(VkDevice device, uint32_t family);
 static VkCommandPool createCommandPool(VkDevice device, uint32_t dst_queue_family);
+static VkDescriptorPool createDescPool(VkDevice device);
 static std::array<VkFence, kMaxConcurrentFrames> createFences(VkDevice device);
 static std::array<VkSemaphore, kMaxConcurrentFrames> createSemaphores(VkDevice device);
 
@@ -45,6 +46,7 @@ RenderingContext RenderingContext::create() {
     ctx.graphics_queue = getQueue(ctx.device, ctx.graphics_family);
     ctx.present_queue = getQueue(ctx.device, ctx.present_family);
     ctx.cmd_pool = createCommandPool(ctx.device, ctx.graphics_family);
+    ctx.desc_pool = createDescPool(ctx.device);
     ctx.fences = createFences(ctx.device);
     ctx.present_complete = createSemaphores(ctx.device);
     ctx.render_complete = createSemaphores(ctx.device);
@@ -61,6 +63,7 @@ void RenderingContext::destroy() {
         vkDestroySemaphore(device, present_complete[i], nullptr);
     }
 
+    vkDestroyDescriptorPool(device, desc_pool, nullptr);
     vkDestroyCommandPool(device, cmd_pool, nullptr);
     vkDestroyDevice(device, nullptr);
     auto destroyer = (PFN_vkDestroyDebugUtilsMessengerEXT)vkGetInstanceProcAddr(instance, "vkDestroyDebugUtilsMessengerEXT");
@@ -239,6 +242,22 @@ static VkCommandPool createCommandPool(VkDevice device, uint32_t dst_queue_famil
 
     VkCommandPool pool;
     assert(vkCreateCommandPool(device, &info, nullptr, &pool) == VK_SUCCESS);
+    return pool;
+}
+
+static VkDescriptorPool createDescPool(VkDevice device) {
+    VkDescriptorPoolSize pool_sizes{};
+    pool_sizes.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    pool_sizes.descriptorCount = static_cast<uint32_t>(kMaxConcurrentFrames);
+
+    VkDescriptorPoolCreateInfo info{};
+    info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+    info.poolSizeCount = 1;
+    info.pPoolSizes = &pool_sizes;
+    info.maxSets = static_cast<uint32_t>(kMaxConcurrentFrames);
+
+    VkDescriptorPool pool;
+    assert(vkCreateDescriptorPool(device, &info, nullptr, &pool) == VK_SUCCESS);
     return pool;
 }
 

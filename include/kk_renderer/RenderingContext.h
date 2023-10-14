@@ -16,6 +16,7 @@ namespace kk {
             VkDevice device;
             VkQueue graphics_queue, present_queue;
             VkCommandPool cmd_pool;
+            VkDescriptorPool desc_pool;
             std::array<VkFence, kMaxConcurrentFrames> fences;
             std::array<VkSemaphore, kMaxConcurrentFrames> render_complete;
             std::array<VkSemaphore, kMaxConcurrentFrames> present_complete;

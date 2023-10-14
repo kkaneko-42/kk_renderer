@@ -11,6 +11,7 @@ set(SRCS
 	src/Buffer.cpp
 	src/Geometry.cpp
 	src/Vertex.cpp
+	src/ResourceDescriptor.cpp
 )
 
 add_library(${PROJECT_NAME} STATIC ${SRCS})

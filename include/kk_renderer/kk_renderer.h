@@ -5,3 +5,4 @@
 #include "Swapchain.h"
 #include "Renderer.h"
 #include "Geometry.h"
+#include "ResourceDescriptor.h"

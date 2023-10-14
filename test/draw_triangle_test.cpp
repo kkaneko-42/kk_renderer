@@ -56,3 +56,21 @@ TEST(DrawTriangleTest, GeometryDrawing) {
     ctx.destroy();
     window.destroy();
 }
+
+TEST(DrawTriangleTest, DescriptorSetCreation) {
+    RenderingContext ctx = RenderingContext::create();
+    Buffer buf = Buffer::create(
+        ctx,
+        sizeof(float) * 1,
+        VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
+    );
+
+    ResourceDescriptor resource_descriptor;
+    resource_descriptor.bindBuffer(0, buf, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT);
+    VkDescriptorSetLayout layout = resource_descriptor.buildLayout(ctx);
+    VkDescriptorSet set = resource_descriptor.buildSet(ctx, layout);
+
+    buf.destroy(ctx);
+    ctx.destroy();
+}
