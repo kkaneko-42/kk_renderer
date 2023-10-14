@@ -3,6 +3,7 @@
 #include <iostream>
 #include <fstream>
 #include <vector>
+#include <cstring>
 
 #ifndef TEST_RESOURCE_DIR
 #define TEST_RESOURCE_DIR "./resources"
