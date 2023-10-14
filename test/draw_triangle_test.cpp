@@ -33,7 +33,7 @@ TEST(DrawTriangleTest, GeometryCreation) {
     ctx.destroy();
 }
 
-TEST(DrawTriangleTest, GeometryDrawing) {
+TEST(DrawTriangleTest, DISABLED_GeometryDrawing) {
     const std::pair<size_t, size_t> size = { 800, 800 };
     const std::string name = "draw triangle test";
     Window window = Window::create(size.first, size.second, name);
@@ -71,6 +71,33 @@ TEST(DrawTriangleTest, DescriptorSetCreation) {
     VkDescriptorSetLayout layout = resource_descriptor.buildLayout(ctx);
     VkDescriptorSet set = resource_descriptor.buildSet(ctx, layout);
 
+    vkDestroyDescriptorSetLayout(ctx.device, layout, nullptr);
     buf.destroy(ctx);
     ctx.destroy();
+}
+
+TEST(DrawTriangleTest, TransformedGeometryDrawing) {
+    const std::pair<size_t, size_t> size = { 800, 800 };
+    const std::string name = "draw transformed triangle test";
+    Window window = Window::create(size.first, size.second, name);
+    RenderingContext ctx = RenderingContext::create();
+    Swapchain swapchain = Swapchain::create(ctx, window);
+
+    Geometry triangle = Geometry::create(ctx, kTriangleVertices, kTriangleIndices);
+    Transform transform{};
+    Renderer renderer = Renderer::create(ctx, swapchain);
+    while (!window.isClosed()) {
+        window.pollEvents();
+        if (renderer.beginFrame(ctx, swapchain)) {
+            transform.rotation = glm::rotate(transform.rotation, 1.0f, glm::vec3(0.0f, 0.0f, 1.0f));
+            renderer.render(triangle, transform);
+            renderer.endFrame(ctx, swapchain);
+        }
+    }
+
+    triangle.destroy(ctx);
+    renderer.destroy(ctx);
+    swapchain.destroy(ctx);
+    ctx.destroy();
+    window.destroy();
 }

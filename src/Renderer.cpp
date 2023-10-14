@@ -11,7 +11,7 @@
 using namespace kk::renderer;
 
 static VkRenderPass createRenderPass(RenderingContext& ctx, VkFormat swapchain_format);
-static VkPipelineLayout createPipelineLayout(RenderingContext& ctx);
+static VkPipelineLayout createPipelineLayout(RenderingContext& ctx, const VkDescriptorSetLayout& set_layout);
 static VkPipeline createPipeline(RenderingContext& ctx, VkPipelineLayout layout, VkRenderPass render_pass);
 static std::array<VkFramebuffer, kMaxConcurrentFrames> createFramebuffers(RenderingContext& ctx, Swapchain& swapchain, VkRenderPass render_pass);
 
@@ -19,6 +19,7 @@ Renderer Renderer::create(RenderingContext& ctx, Swapchain& swapchain) {
     Renderer renderer{};
     renderer.current_frame_ = renderer.img_idx_ = 0;
     
+    // Allocate command buffer
     VkCommandBufferAllocateInfo alloc_info{};
     alloc_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
     alloc_info.commandPool = ctx.cmd_pool;
@@ -26,8 +27,24 @@ Renderer Renderer::create(RenderingContext& ctx, Swapchain& swapchain) {
     alloc_info.commandBufferCount = kMaxConcurrentFrames;
     assert(vkAllocateCommandBuffers(ctx.device, &alloc_info, renderer.cmd_bufs_.data()) == VK_SUCCESS);
 
+    // Prepare uniform buffer and its descriptor
+    ResourceDescriptor resources;
+    renderer.uniform_ = Buffer::create(
+        ctx,
+        sizeof(glm::mat4),
+        VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
+    );
+    assert(vkMapMemory(ctx.device, renderer.uniform_.memory, 0, renderer.uniform_.size, 0, &renderer.mapped_uniform_) == VK_SUCCESS);
+    resources.bindBuffer(0, renderer.uniform_, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT);
+    renderer.desc_layout_ = resources.buildLayout(ctx);
+    for (size_t i = 0; i < kMaxConcurrentFrames; ++i) {
+        renderer.desc_sets_[i] = resources.buildSet(ctx, renderer.desc_layout_);
+    }
+
+    // Create graphics pipelines and related objects
     renderer.render_pass_ = createRenderPass(ctx, swapchain.surface_format.format);
-    renderer.pipeline_layout_ = createPipelineLayout(ctx);
+    renderer.pipeline_layout_ = createPipelineLayout(ctx, renderer.desc_layout_);
     renderer.pipeline_ = createPipeline(ctx, renderer.pipeline_layout_, renderer.render_pass_);
     renderer.framebuffers_ = createFramebuffers(ctx, swapchain, renderer.render_pass_);
 
@@ -44,6 +61,17 @@ void Renderer::destroy(RenderingContext& ctx) {
     vkDestroyPipeline(ctx.device, pipeline_, nullptr);
     vkDestroyPipelineLayout(ctx.device, pipeline_layout_, nullptr);
     vkDestroyRenderPass(ctx.device, render_pass_, nullptr);
+
+    vkUnmapMemory(ctx.device, uniform_.memory);
+    uniform_.destroy(ctx);
+    vkDestroyDescriptorSetLayout(ctx.device, desc_layout_, nullptr);
+
+    vkFreeCommandBuffers(
+        ctx.device,
+        ctx.cmd_pool,
+        static_cast<uint32_t>(cmd_bufs_.size()),
+        cmd_bufs_.data()
+    );
 }
 
 bool Renderer::beginFrame(RenderingContext& ctx, Swapchain& swapchain) {
@@ -163,6 +191,40 @@ void Renderer::render(const Geometry& geometry) {
     vkCmdDrawIndexed(current_buf, static_cast<uint32_t>(geometry.indices.size()), 1, 0, 0, 0);
 }
 
+std::ostream& operator<<(std::ostream& os, const glm::mat4& mat) {
+    for (size_t i = 0; i < 4; ++i) {
+        for (size_t j = 0; j < 4; ++j) {
+            std::cout << mat[i][j] << " ";
+        }
+        std::cout << std::endl;
+    }
+    return os;
+}
+
+void Renderer::render(const Geometry& geometry, const Transform& transform) {
+    // Build MVP matrix
+    const glm::mat4 model = glm::scale(glm::mat4(1.0f), transform.scale) * glm::mat4_cast(transform.rotation) * glm::translate(glm::mat4(1.0f), transform.position);
+    const glm::mat4 view  = glm::lookAt(glm::vec3(-1.0f, -1.0f, -1.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+    glm::mat4 projection = glm::perspective(glm::radians(45.0f), 4.0f / 3.0f, 0.1f, 10.0f);
+    projection[1][1] *= -1;
+    const glm::mat4 mvp = projection * view * model;
+
+    // Copy MVP to uniform buffer
+    std::memcpy(mapped_uniform_, &mvp, sizeof(glm::mat4));
+
+    vkCmdBindDescriptorSets(
+        cmd_bufs_[current_frame_],
+        VK_PIPELINE_BIND_POINT_GRAPHICS,
+        pipeline_layout_,
+        0,
+        1,
+        &desc_sets_[current_frame_],
+        0,
+        nullptr
+    );
+    render(geometry);
+}
+
 static VkRenderPass createRenderPass(RenderingContext& ctx, VkFormat swapchain_format /* TODO: remove swapchain_format */) {
     VkAttachmentDescription color_attachment{};
     color_attachment.format = swapchain_format;
@@ -235,10 +297,11 @@ static VkShaderModule createShaderModule(RenderingContext& ctx, const std::vecto
     return shader;
 }
 
-static VkPipelineLayout createPipelineLayout(RenderingContext& ctx) {
+static VkPipelineLayout createPipelineLayout(RenderingContext& ctx, const VkDescriptorSetLayout& set_layout) {
     VkPipelineLayoutCreateInfo info{};
     info.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-    info.setLayoutCount = 0;
+    info.setLayoutCount = 1;
+    info.pSetLayouts = &set_layout;
     info.pushConstantRangeCount = 0;
 
     VkPipelineLayout layout;
