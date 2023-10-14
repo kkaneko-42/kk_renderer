@@ -82,15 +82,49 @@ TEST(DrawTriangleTest, TransformedGeometryDrawing) {
     Window window = Window::create(size.first, size.second, name);
     RenderingContext ctx = RenderingContext::create();
     Swapchain swapchain = Swapchain::create(ctx, window);
-
-    Geometry triangle = Geometry::create(ctx, kTriangleVertices, kTriangleIndices);
+    
     Transform transform{};
+    Geometry triangle = Geometry::create(ctx, kTriangleVertices, kTriangleIndices);
     Renderer renderer = Renderer::create(ctx, swapchain);
     while (!window.isClosed()) {
         window.pollEvents();
         if (renderer.beginFrame(ctx, swapchain)) {
             transform.rotation = glm::rotate(transform.rotation, 1.0f, glm::vec3(0.0f, 0.0f, 1.0f));
             renderer.render(triangle, transform);
+            renderer.endFrame(ctx, swapchain);
+        }
+    }
+
+    triangle.destroy(ctx);
+    renderer.destroy(ctx);
+    swapchain.destroy(ctx);
+    ctx.destroy();
+    window.destroy();
+}
+
+TEST(DrawTriangleTest, MultipleTransformDrawing) {
+    const size_t transform_count = 5;
+    const std::pair<size_t, size_t> size = { 800, 800 };
+    const std::string name = "multiple transform triangle test";
+    Window window = Window::create(size.first, size.second, name);
+    RenderingContext ctx = RenderingContext::create();
+    Swapchain swapchain = Swapchain::create(ctx, window);
+
+    // Create transforms
+    std::vector<Transform> transforms(transform_count);
+    for (size_t i = 0; i < transform_count; ++i) {
+        transforms[i].position.x = (transform_count / 2.0f - i) / 2.0f;
+        transforms[i].scale = glm::vec3(0.5f);
+    }
+
+    Geometry triangle = Geometry::create(ctx, kTriangleVertices, kTriangleIndices);
+    Renderer renderer = Renderer::create(ctx, swapchain);
+    while (!window.isClosed()) {
+        window.pollEvents();
+        if (renderer.beginFrame(ctx, swapchain)) {
+            for (const auto& tf : transforms) {
+                renderer.render(triangle, tf);
+            }
             renderer.endFrame(ctx, swapchain);
         }
     }
