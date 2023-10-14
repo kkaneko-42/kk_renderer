@@ -2,6 +2,7 @@
 #include <iostream>
 #include <cassert>
 #include <algorithm>
+#include <memory>
 
 using namespace kk::renderer;
 
@@ -34,7 +35,7 @@ void ResourceDescriptor::bindBuffer(
 
 std::shared_ptr<Buffer> ResourceDescriptor::getBuffer(uint32_t binding) {
     // TODO: Validation
-    return std::reinterpret_pointer_cast<Buffer>(resources_[binding].second);
+    return std::static_pointer_cast<Buffer>(resources_[binding].second);
 }
 
 // NOTE: Once called, return same object
