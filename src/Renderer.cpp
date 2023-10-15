@@ -6,7 +6,7 @@
 #include <cstring>
 
 #ifndef TEST_RESOURCE_DIR
-#define TEST_RESOURCE_DIR "./resources"
+#define TEST_RESOURCE_DIR "./resources/"
 #endif
 
 using namespace kk::renderer;

@@ -65,11 +65,30 @@ void Buffer::setData(RenderingContext& ctx, const void* data, size_t src_size) {
 }
 
 void Buffer::copyTo(RenderingContext& ctx, Buffer& dst, VkDeviceSize copy_size) const {
-    VkCommandBuffer cmd_buf = ctx.beginSingleTimeCommandBuffer();
+    ctx.submitCmdsImmediate([this, dst, copy_size](VkCommandBuffer cmd_buf) {
+        VkBufferCopy copy_region{};
+        copy_region.size = copy_size;
+        vkCmdCopyBuffer(cmd_buf, buffer, dst.buffer, 1, &copy_region);
+    });
+}
 
-    VkBufferCopy copy_region{};
-    copy_region.size = copy_size;
-    vkCmdCopyBuffer(cmd_buf, buffer, dst.buffer, 1, &copy_region);
+void Buffer::copyTo(RenderingContext& ctx, Texture& dst, VkExtent2D copy_extent) const {
+    ctx.submitCmdsImmediate([this, dst, copy_extent](VkCommandBuffer cmd_buf) {
+        VkBufferImageCopy region{};
+        region.bufferOffset = 0;
+        region.bufferRowLength = 0;
+        region.bufferImageHeight = 0;
+        region.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+        region.imageSubresource.mipLevel = 0;
+        region.imageSubresource.baseArrayLayer = 0;
+        region.imageSubresource.layerCount = 1;
+        region.imageOffset = { 0, 0, 0 };
+        region.imageExtent = {
+            copy_extent.width,
+            copy_extent.height,
+            1
+        };
 
-    ctx.endSingleTimeCommandBuffer(cmd_buf);
+        vkCmdCopyBufferToImage(cmd_buf, buffer, dst.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
+    });
 }

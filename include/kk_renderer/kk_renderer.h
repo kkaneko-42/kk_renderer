@@ -7,3 +7,4 @@
 #include "Geometry.h"
 #include "ResourceDescriptor.h"
 #include "PerspectiveCamera.h"
+#include "Texture.h"

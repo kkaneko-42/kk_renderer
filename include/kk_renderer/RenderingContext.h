@@ -3,6 +3,7 @@
 #include <vulkan/vulkan.h>
 #include <vector>
 #include <array>
+#include <functional>
 
 namespace kk {
     namespace renderer {
@@ -25,8 +26,10 @@ namespace kk {
             void destroy();
             VkImageView createImageView(VkImage image, VkFormat format, VkImageAspectFlags aspectFlags);
             uint32_t findMemoryType(uint32_t type_filter, VkMemoryPropertyFlags props);
-            VkCommandBuffer beginSingleTimeCommandBuffer();
-            void endSingleTimeCommandBuffer(VkCommandBuffer cmd);
+            // VkCommandBuffer beginSingleTimeCommandBuffer();
+            // void endSingleTimeCommandBuffer(VkCommandBuffer cmd);
+            void submitCmdsImmediate(std::function<void(VkCommandBuffer)> cmds_recorder);
+            void transitionImageLayout(VkImage image, VkFormat format, VkImageLayout old_layout, VkImageLayout new_layout);
         };
     }
 }

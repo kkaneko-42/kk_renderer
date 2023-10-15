@@ -45,6 +45,15 @@ else (UNIX)
     message(FATAL_ERROR "fatal: unknown build platform")
 endif (UNIX)
 
+if (MSVC)
+	target_compile_options(${PROJECT_NAME} PRIVATE /MTd)
+	# for test purpose
+	target_compile_options(${PROJECT_NAME} PRIVATE /D TEST_RESOURCE_DIR="${kk_renderer_SOURCE_DIR}/resources/")
+else (MSVC)
+	# for test purpose
+	target_compile_options(${PROJECT_NAME} PRIVATE -D TEST_RESOURCE_DIR="${kk_renderer_SOURCE_DIR}/resources/")
+endif (MSVC)
+
 add_custom_command(
     TARGET ${PROJECT_NAME}
     POST_BUILD
