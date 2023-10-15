@@ -37,6 +37,8 @@ Texture Texture::create(
 }
 
 void Texture::destroy(RenderingContext& ctx) {
+    vkDeviceWaitIdle(ctx.device);
+
     vkDestroySampler(ctx.device, sampler, nullptr);
     vkDestroyImageView(ctx.device, view, nullptr);
     vkFreeMemory(ctx.device, memory, nullptr);

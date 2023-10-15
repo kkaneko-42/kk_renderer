@@ -31,6 +31,7 @@ Renderer Renderer::create(RenderingContext& ctx, Swapchain& swapchain) {
     // Prepare uniform buffer and its descriptor
     ResourceDescriptor resources;
     resources.bindBuffer(0, std::make_shared<Buffer>(), VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT);
+    resources.bindTexture(1, std::make_shared<Texture>(), VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT);
     resources.buildLayout(ctx);
     renderer.desc_layout_ = resources.getLayout();
 
@@ -337,8 +338,8 @@ static VkPipelineLayout createPipelineLayout(RenderingContext& ctx, const VkDesc
 }
 
 static VkPipeline createPipeline(RenderingContext& ctx, VkPipelineLayout layout, VkRenderPass render_pass) {
-    auto vert_code = readFile(TEST_RESOURCE_DIR + std::string("shaders/triangle.vert.spv"));
-    auto frag_code = readFile(TEST_RESOURCE_DIR + std::string("shaders/triangle.frag.spv"));
+    auto vert_code = readFile(TEST_RESOURCE_DIR + std::string("shaders/texture.vert.spv"));
+    auto frag_code = readFile(TEST_RESOURCE_DIR + std::string("shaders/texture.frag.spv"));
 
     VkShaderModule vert_module = createShaderModule(ctx, vert_code);
     VkShaderModule frag_module = createShaderModule(ctx, frag_code);

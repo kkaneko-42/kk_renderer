@@ -5,11 +5,12 @@
 #include "Geometry.h"
 #include "ResourceDescriptor.h"
 #include "Buffer.h"
+#include "Texture.h"
 
 namespace kk {
     namespace renderer {
         struct Renderable {
-            static Renderable create(RenderingContext& ctx, const Geometry& geometry_value);
+            static Renderable create(RenderingContext& ctx, const Geometry& geometry_value, std::shared_ptr<Texture> texture = nullptr);
             void destroy(RenderingContext& ctx);
 
             Transform transform;

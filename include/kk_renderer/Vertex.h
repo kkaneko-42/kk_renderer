@@ -1,5 +1,6 @@
 #pragma once
 
+#include "Vec2.h"
 #include "Vec3.h"
 #include "Vec4.h"
 #include <vulkan/vulkan.h>
@@ -9,10 +10,11 @@ namespace kk {
     namespace renderer {
         struct Vertex {
             Vec3 position;
+            Vec2 uv;
             Vec4 color;
 
             static VkVertexInputBindingDescription getBindingDescription();
-            static std::array<VkVertexInputAttributeDescription, 2> getAttributeDescriptions();
+            static std::array<VkVertexInputAttributeDescription, 3> getAttributeDescriptions();
         };
     }
 }

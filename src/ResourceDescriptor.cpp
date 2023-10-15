@@ -9,11 +9,18 @@ using namespace kk::renderer;
 ResourceDescriptor::ResourceDescriptor() : layout_(VK_NULL_HANDLE), set_(VK_NULL_HANDLE) {}
 
 void ResourceDescriptor::destroy(RenderingContext& ctx) {
+    vkDeviceWaitIdle(ctx.device);
+
     if (set_ != VK_NULL_HANDLE) {
         vkFreeDescriptorSets(ctx.device, ctx.desc_pool, 1, &set_);
     }
     if (layout_ != VK_NULL_HANDLE) {
         vkDestroyDescriptorSetLayout(ctx.device, layout_, nullptr);
+    }
+
+    // Release resources
+    for (auto& kvp : resources_) {
+        kvp.second.second.reset();
     }
 }
 
@@ -31,6 +38,22 @@ void ResourceDescriptor::bindBuffer(
 
     resources_[binding].first = layout_binding;
     resources_[binding].second = std::static_pointer_cast<void>(buffer);
+}
+
+void ResourceDescriptor::bindTexture(
+    uint32_t binding,
+    const std::shared_ptr<Texture>& texture,
+    VkDescriptorType type,
+    VkShaderStageFlags stage
+) {
+    VkDescriptorSetLayoutBinding layout_binding{};
+    layout_binding.binding = binding;
+    layout_binding.descriptorCount = 1;
+    layout_binding.descriptorType = type;
+    layout_binding.stageFlags = stage;
+
+    resources_[binding].first = layout_binding;
+    resources_[binding].second = std::static_pointer_cast<void>(texture);
 }
 
 std::shared_ptr<Buffer> ResourceDescriptor::getBuffer(uint32_t binding) {
@@ -82,6 +105,7 @@ void ResourceDescriptor::buildSet(RenderingContext& ctx) {
 
         // Create descriptor resource info
         VkDescriptorBufferInfo buf_info{};
+        VkDescriptorImageInfo tex_info{};
         switch (layout_binding.descriptorType) {
         case VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER: { // NOTE: buf_resource should be scoped
             const Buffer* buf_resource = static_cast<const Buffer*>(resource);
@@ -89,6 +113,16 @@ void ResourceDescriptor::buildSet(RenderingContext& ctx) {
             buf_info.offset = 0;
             buf_info.range = buf_resource->size;
             desc_write.pBufferInfo = &buf_info;
+            break;
+        }
+
+        case VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER: {
+            const Texture* tex_resource = static_cast<const Texture*>(resource);
+            // tex_info.imageLayout = tex_resource->layout;
+            tex_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL; // TODO: support other layout
+            tex_info.imageView = tex_resource->view;
+            tex_info.sampler = tex_resource->sampler;
+            desc_write.pImageInfo = &tex_info;
             break;
         }
 

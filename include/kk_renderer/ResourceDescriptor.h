@@ -6,6 +6,7 @@
 #include <memory>
 #include "RenderingContext.h"
 #include "Buffer.h"
+#include "Texture.h"
 
 namespace kk {
     namespace renderer {
@@ -19,6 +20,12 @@ namespace kk {
             void bindBuffer(
                 uint32_t binding,
                 const std::shared_ptr<Buffer>& buffer,
+                VkDescriptorType type,
+                VkShaderStageFlags stage
+            );
+            void bindTexture(
+                uint32_t binding,
+                const std::shared_ptr<Texture>& texture,
                 VkDescriptorType type,
                 VkShaderStageFlags stage
             );
