@@ -15,6 +15,8 @@ set(SRCS
 	src/Renderable.cpp
 	src/PerspectiveCamera.cpp
 	src/Texture.cpp
+	src/Shader.cpp
+	src/GraphicsPipeline.cpp
 )
 
 add_library(${PROJECT_NAME} STATIC ${SRCS})
