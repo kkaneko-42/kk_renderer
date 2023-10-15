@@ -13,6 +13,7 @@ set(SRCS
 	src/Vertex.cpp
 	src/ResourceDescriptor.cpp
 	src/Renderable.cpp
+	src/PerspectiveCamera.cpp
 )
 
 add_library(${PROJECT_NAME} STATIC ${SRCS})

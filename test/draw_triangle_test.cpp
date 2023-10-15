@@ -1,4 +1,5 @@
 #include <gtest/gtest.h>
+#include <GLFW/glfw3.h>
 #include "kk_renderer/kk_renderer.h"
 
 using namespace kk::renderer;
@@ -77,6 +78,28 @@ TEST(DrawTriangleTest, DescriptorSetCreation) {
     ctx.destroy();
 }
 
+template <class TransformedObject>
+static void handleKey(int code, int state, TransformedObject& obj) {
+    if (state == GLFW_RELEASE) {
+        return;
+    }
+
+    std::cout << "called!" << std::endl;
+
+    if (code == GLFW_KEY_W) {
+        obj.transform.position.y -= 0.1f;
+    }
+    else if (code == GLFW_KEY_A) {
+        obj.transform.position.x -= 0.1f;
+    }
+    else if (code == GLFW_KEY_S) {
+        obj.transform.position.y += 0.1f;
+    }
+    else if (code == GLFW_KEY_D) {
+        obj.transform.position.x += 0.1f;
+    }
+}
+
 TEST(DrawTriangleTest, TransformedGeometryDrawing) {
     const std::pair<size_t, size_t> size = { 800, 800 };
     const std::string name = "draw transformed triangle test";
@@ -84,11 +107,17 @@ TEST(DrawTriangleTest, TransformedGeometryDrawing) {
     RenderingContext ctx = RenderingContext::create();
     Swapchain swapchain = Swapchain::create(ctx, window);
     
+    // Prepare an object
     Geometry triangle = Geometry::create(ctx, kTriangleVertices, kTriangleIndices);
     Renderable renderable = Renderable::create(ctx, triangle);
+
     Renderer renderer = Renderer::create(ctx, swapchain);
     while (!window.isClosed()) {
         window.pollEvents();
+        handleKey(GLFW_KEY_W, glfwGetKey(static_cast<GLFWwindow*>(window.acquireHandle()), GLFW_KEY_W), renderable);
+        handleKey(GLFW_KEY_A, glfwGetKey(static_cast<GLFWwindow*>(window.acquireHandle()), GLFW_KEY_A), renderable);
+        handleKey(GLFW_KEY_S, glfwGetKey(static_cast<GLFWwindow*>(window.acquireHandle()), GLFW_KEY_S), renderable);
+        handleKey(GLFW_KEY_D, glfwGetKey(static_cast<GLFWwindow*>(window.acquireHandle()), GLFW_KEY_D), renderable);
         if (renderer.beginFrame(ctx, swapchain)) {
             renderer.render(renderable);
             renderer.endFrame(ctx, swapchain);
@@ -111,8 +140,8 @@ TEST(DrawTriangleTest, MultipleTransformDrawing) {
     RenderingContext ctx = RenderingContext::create();
     Swapchain swapchain = Swapchain::create(ctx, window);
 
+    // Prepare objects
     Geometry triangle = Geometry::create(ctx, kTriangleVertices, kTriangleIndices);
-    // Create renderables
     std::vector<Renderable> renderables(transform_count);
     for (size_t i = 0; i < transform_count; ++i) {
         renderables[i] = Renderable::create(ctx, triangle);
@@ -134,6 +163,40 @@ TEST(DrawTriangleTest, MultipleTransformDrawing) {
     for (auto& r : renderables) {
         r.destroy(ctx);
     }
+    triangle.destroy(ctx);
+    renderer.destroy(ctx);
+    swapchain.destroy(ctx);
+    ctx.destroy();
+    window.destroy();
+}
+
+TEST(DrawTriangleTest, CameraDrawing) {
+    const std::pair<size_t, size_t> size = { 800, 800 };
+    const std::string name = "camera triangle test";
+    Window window = Window::create(size.first, size.second, name);
+    RenderingContext ctx = RenderingContext::create();
+    Swapchain swapchain = Swapchain::create(ctx, window);
+
+    // Prepare objects
+    Geometry triangle = Geometry::create(ctx, kTriangleVertices, kTriangleIndices);
+    Renderable renderable = Renderable::create(ctx, triangle);
+    PerspectiveCamera camera(45.0f, swapchain.extent.width / (float)swapchain.extent.height, 0.1f, 10.0f);
+    camera.transform.position = kk::Vec3(0.0f, 0.0f, -2.0f);
+
+    Renderer renderer = Renderer::create(ctx, swapchain);
+    while (!window.isClosed()) {
+        window.pollEvents();
+        handleKey(GLFW_KEY_W, glfwGetKey(static_cast<GLFWwindow*>(window.acquireHandle()), GLFW_KEY_W), camera);
+        handleKey(GLFW_KEY_A, glfwGetKey(static_cast<GLFWwindow*>(window.acquireHandle()), GLFW_KEY_A), camera);
+        handleKey(GLFW_KEY_S, glfwGetKey(static_cast<GLFWwindow*>(window.acquireHandle()), GLFW_KEY_S), camera);
+        handleKey(GLFW_KEY_D, glfwGetKey(static_cast<GLFWwindow*>(window.acquireHandle()), GLFW_KEY_D), camera);
+        if (renderer.beginFrame(ctx, swapchain)) {
+            renderer.render(renderable, camera);
+            renderer.endFrame(ctx, swapchain);
+        }
+    }
+
+    renderable.destroy(ctx);
     triangle.destroy(ctx);
     renderer.destroy(ctx);
     swapchain.destroy(ctx);

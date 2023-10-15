@@ -6,6 +6,7 @@
 #include "Transform.h"
 #include "ResourceDescriptor.h"
 #include "Renderable.h"
+#include "Camera.h"
 
 namespace kk {
     namespace renderer {
@@ -19,6 +20,7 @@ namespace kk {
             void recordCommands();
             void render(const Geometry& geometry);
             void render(Renderable& renderable);
+            void render(Renderable& renderable, const Camera& camera);
 
         private:
             VkRenderPass render_pass_;

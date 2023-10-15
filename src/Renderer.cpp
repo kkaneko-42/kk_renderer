@@ -198,10 +198,42 @@ void Renderer::render(Renderable& renderable) {
         glm::translate(glm::mat4(1.0f), renderable.transform.position)
     ;
     // TODO: These should be got from camera
-    const glm::mat4 view  = glm::lookAt(glm::vec3(-1.0f, -1.0f, -1.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+    const glm::mat4 view  = glm::lookAt(glm::vec3(0.0f, 0.0f, -2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, -1.0f, 0.0f));
     glm::mat4 projection = glm::perspective(glm::radians(45.0f), 4.0f / 3.0f, 0.1f, 10.0f);
     projection[1][1] *= -1;
     const glm::mat4 mvp = projection * view * model;
+
+    // Copy MVP to uniform buffer
+    std::memcpy(renderable.resources[current_frame_].getBuffer(0)->mapped, &mvp, sizeof(glm::mat4));
+
+    VkDescriptorSet set = renderable.resources[current_frame_].getSet();
+    vkCmdBindDescriptorSets(
+        cmd_bufs_[current_frame_],
+        VK_PIPELINE_BIND_POINT_GRAPHICS,
+        pipeline_layout_,
+        0,
+        1,
+        &set,
+        0,
+        nullptr
+    );
+    render(renderable.geometry);
+}
+
+void Renderer::render(Renderable& renderable, const Camera& camera) {
+    // Build MVP matrix
+    const Mat4 model =
+        glm::scale(glm::mat4(1.0f), renderable.transform.scale) *
+        glm::mat4_cast(renderable.transform.rotation) *
+        glm::translate(glm::mat4(1.0f), renderable.transform.position)
+        ;
+    const Mat4 view = glm::lookAt(
+        camera.transform.position,
+        Vec3(0.0f),
+        Vec3(0.0f, -1.0f, 0.0f)
+    );
+    const Mat4 proj = camera.getProjection();
+    const Mat4 mvp = proj * view * model;
 
     // Copy MVP to uniform buffer
     std::memcpy(renderable.resources[current_frame_].getBuffer(0)->mapped, &mvp, sizeof(glm::mat4));

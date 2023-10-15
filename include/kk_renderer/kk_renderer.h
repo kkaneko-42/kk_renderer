@@ -6,3 +6,4 @@
 #include "Renderer.h"
 #include "Geometry.h"
 #include "ResourceDescriptor.h"
+#include "PerspectiveCamera.h"
