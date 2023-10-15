@@ -229,7 +229,7 @@ void Renderer::render(Renderable& renderable, const Camera& camera) {
         ;
     const Mat4 view = glm::lookAt(
         camera.transform.position,
-        Vec3(0.0f),
+        camera.transform.position + camera.transform.rotation * Vec3(0.0f, 0.0f, 1.0f),
         Vec3(0.0f, -1.0f, 0.0f)
     );
     const Mat4 proj = camera.getProjection();
