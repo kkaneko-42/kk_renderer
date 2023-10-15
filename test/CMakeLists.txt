@@ -6,6 +6,7 @@ set(SRCS
     lib_link_test.cpp
     rendering_loop_test.cpp
 	draw_triangle_test.cpp
+	draw_texture_test.cpp
     runner.cpp
 )
 set(SHADERS_DIR ${kk_renderer_SOURCE_DIR}/resources/shaders)
@@ -14,6 +15,7 @@ add_executable(${PROJECT_NAME} ${SRCS})
 target_include_directories(${PROJECT_NAME} PRIVATE ${kk_renderer_SOURCE_DIR}/external/vulkan/Include)
 target_include_directories(${PROJECT_NAME} PRIVATE ${kk_renderer_SOURCE_DIR}/external/glfw/include)
 target_include_directories(${PROJECT_NAME} PRIVATE ${kk_renderer_SOURCE_DIR}/external/glm/include)
+target_include_directories(${PROJECT_NAME} PRIVATE ${kk_renderer_SOURCE_DIR}/external/stb/include)
 target_include_directories(${PROJECT_NAME} PRIVATE ${kk_renderer_SOURCE_DIR}/external/googletest/include)
 target_include_directories(${PROJECT_NAME} PRIVATE ${kk_renderer_SOURCE_DIR}/include)
 

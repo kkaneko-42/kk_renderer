@@ -14,12 +14,15 @@ set(SRCS
 	src/ResourceDescriptor.cpp
 	src/Renderable.cpp
 	src/PerspectiveCamera.cpp
+
+	src/loaders/TextureLoader.cpp
 )
 
 add_library(${PROJECT_NAME} STATIC ${SRCS})
 target_include_directories(${PROJECT_NAME} PRIVATE ${PROJECT_SOURCE_DIR}/external/vulkan/Include)
 target_include_directories(${PROJECT_NAME} PRIVATE ${PROJECT_SOURCE_DIR}/external/glfw/include)
 target_include_directories(${PROJECT_NAME} PRIVATE ${PROJECT_SOURCE_DIR}/external/glm/include)
+target_include_directories(${PROJECT_NAME} PRIVATE ${PROJECT_SOURCE_DIR}/external/stb/include)
 target_include_directories(${PROJECT_NAME} PRIVATE ${PROJECT_SOURCE_DIR}/include)
 
 if (MSVC)
