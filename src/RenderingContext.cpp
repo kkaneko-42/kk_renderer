@@ -248,7 +248,7 @@ static VkCommandPool createCommandPool(VkDevice device, uint32_t dst_queue_famil
 static VkDescriptorPool createDescPool(VkDevice device) {
     VkDescriptorPoolSize pool_sizes{};
     pool_sizes.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    pool_sizes.descriptorCount = static_cast<uint32_t>(kMaxConcurrentFrames);
+    pool_sizes.descriptorCount = static_cast<uint32_t>(kMaxConcurrentFrames) * 256;
 
     VkDescriptorPoolCreateInfo info{};
     info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
