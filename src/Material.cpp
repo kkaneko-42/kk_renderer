@@ -77,7 +77,7 @@ void Material::compile(RenderingContext& ctx, VkRenderPass render_pass) {
     buildDescLayout(ctx);
     buildDescSets(ctx, desc_layout_);
     buildPipelineLayout(ctx, desc_layout_);
-    buildPipeline(ctx, render_pass, pipeline_layout_);
+    buildPipeline(ctx, pipeline_layout_, render_pass);
 
     is_compiled_ = true;
 }
@@ -160,7 +160,7 @@ void Material::buildPipelineLayout(RenderingContext& ctx, VkDescriptorSetLayout 
     assert(vkCreatePipelineLayout(ctx.device, &info, nullptr, &pipeline_layout_) == VK_SUCCESS);
 }
 
-void Material::buildPipeline(RenderingContext& ctx, VkRenderPass render_pass, VkPipelineLayout layout) {
+void Material::buildPipeline(RenderingContext& ctx, VkPipelineLayout layout, VkRenderPass render_pass) {
     std::vector<VkPipelineShaderStageCreateInfo> shader_stages;
     shader_stages.reserve(shaders_.size());
     for (const auto& kvp : shaders_) {
@@ -205,7 +205,6 @@ void Material::buildPipeline(RenderingContext& ctx, VkRenderPass render_pass, Vk
     info.subpass = 0; // TODO
 
     assert(vkCreateGraphicsPipelines(ctx.device, VK_NULL_HANDLE, 1, &info, nullptr, &pipeline_) == VK_SUCCESS);
-
 }
 
 void Material::setDefault() {
@@ -226,7 +225,7 @@ void Material::setDefault() {
     rasterizer_.polygonMode = VK_POLYGON_MODE_FILL;
     rasterizer_.lineWidth = 1.0f;
     rasterizer_.cullMode = VK_CULL_MODE_BACK_BIT;
-    rasterizer_.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
+    rasterizer_.frontFace = VK_FRONT_FACE_CLOCKWISE;
     rasterizer_.depthBiasEnable = VK_FALSE;
 
     multisampling_ = {};

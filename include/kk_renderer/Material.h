@@ -45,7 +45,7 @@ namespace kk {
             void buildDescLayout(RenderingContext& ctx);
             void buildDescSets(RenderingContext& ctx, VkDescriptorSetLayout layout);
             void buildPipelineLayout(RenderingContext& ctx, VkDescriptorSetLayout desc_layout);
-            void buildPipeline(RenderingContext& ctx, VkRenderPass render_pass, VkPipelineLayout layout);
+            void buildPipeline(RenderingContext& ctx, VkPipelineLayout layout, VkRenderPass render_pass);
 
             bool is_compiled_;
 

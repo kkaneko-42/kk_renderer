@@ -5,6 +5,7 @@
 #define TEST_RESOURCE_DIR "./resources"
 #endif
 
+using namespace kk;
 using namespace kk::renderer;
 
 static const std::vector<Vertex> kTriangleVertices = {
@@ -61,26 +62,21 @@ TEST(DrawTriangleTest, MaterialCreation) {
     window.destroy();
 }
 
-/*
-template <class TransformedObject>
-static void handleKey(int code, int state, TransformedObject& obj) {
-    if (state == GLFW_RELEASE) {
-        return;
-    }
+static void handleKey(Window& window, Transform& tf) {
+    const std::unordered_map<int, std::function<void(Transform&)>> handlers = {
+        {GLFW_KEY_W, [](auto& tf) {tf.position.y -= 0.01f; }},
+        {GLFW_KEY_A, [](auto& tf) {tf.position.x -= 0.01f; }},
+        {GLFW_KEY_S, [](auto& tf) {tf.position.y += 0.01f; }},
+        {GLFW_KEY_D, [](auto& tf) {tf.position.x += 0.01f; }},
+    };
 
-    std::cout << "called!" << std::endl;
+    for (const auto& kvp : handlers) {
+        const int key = kvp.first;
+        const auto& handler = kvp.second;
 
-    if (code == GLFW_KEY_W) {
-        obj.transform.position.y -= 0.1f;
-    }
-    else if (code == GLFW_KEY_A) {
-        obj.transform.position.x -= 0.1f;
-    }
-    else if (code == GLFW_KEY_S) {
-        obj.transform.position.y += 0.1f;
-    }
-    else if (code == GLFW_KEY_D) {
-        obj.transform.position.x += 0.1f;
+        if (glfwGetKey(static_cast<GLFWwindow*>(window.acquireHandle()), key) == GLFW_PRESS) {
+            handler(tf);
+        }
     }
 }
 
@@ -92,30 +88,47 @@ TEST(DrawTriangleTest, TransformedGeometryDrawing) {
     Swapchain swapchain = Swapchain::create(ctx, window);
     
     // Prepare an object
-    Geometry triangle = Geometry::create(ctx, kTriangleVertices, kTriangleIndices);
-    Renderable renderable = Renderable::create(ctx, triangle);
+    auto triangle = std::make_shared<Geometry>(Geometry::create(ctx, kTriangleVertices, kTriangleIndices));
+    auto vert = std::make_shared<Shader>(Shader::create(ctx, TEST_RESOURCE_DIR + std::string("/shaders/triangle.vert.spv")));
+    auto frag = std::make_shared<Shader>(Shader::create(ctx, TEST_RESOURCE_DIR + std::string("/shaders/triangle.frag.spv")));
+    auto uniform = std::make_shared<Buffer>(Buffer::create(
+        ctx,
+        sizeof(Mat4),
+        VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
+    ));
+    vkMapMemory(ctx.device, uniform->memory, 0, uniform->size, 0, &uniform->mapped);
+    auto material = std::make_shared<Material>();
+    material->setBuffer(0, uniform, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT);
+    material->setVertexShader(vert);
+    material->setFragmentShader(frag);
+    Renderable renderable{ triangle, material };
+    Transform tf;
+    PerspectiveCamera camera(45.0f, swapchain.extent.width / (float)swapchain.extent.height, 0.1f, 10.0f);
+    camera.transform.position.z = -2.0f;
 
     Renderer renderer = Renderer::create(ctx, swapchain);
     while (!window.isClosed()) {
         window.pollEvents();
-        handleKey(GLFW_KEY_W, glfwGetKey(static_cast<GLFWwindow*>(window.acquireHandle()), GLFW_KEY_W), renderable);
-        handleKey(GLFW_KEY_A, glfwGetKey(static_cast<GLFWwindow*>(window.acquireHandle()), GLFW_KEY_A), renderable);
-        handleKey(GLFW_KEY_S, glfwGetKey(static_cast<GLFWwindow*>(window.acquireHandle()), GLFW_KEY_S), renderable);
-        handleKey(GLFW_KEY_D, glfwGetKey(static_cast<GLFWwindow*>(window.acquireHandle()), GLFW_KEY_D), renderable);
+        handleKey(window, tf);
         if (renderer.beginFrame(ctx, swapchain)) {
-            renderer.render(renderable);
+            renderer.render(ctx, renderable, tf, camera);
             renderer.endFrame(ctx, swapchain);
         }
     }
 
-    renderable.destroy(ctx);
-    triangle.destroy(ctx);
+    vkDeviceWaitIdle(ctx.device);
+    material->destroy(ctx);
+    uniform->destroy(ctx);
+    frag->destroy(ctx);
+    vert->destroy(ctx);
+    triangle->destroy(ctx);
     renderer.destroy(ctx);
     swapchain.destroy(ctx);
     ctx.destroy();
     window.destroy();
 }
-
+/*
 TEST(DrawTriangleTest, MultipleTransformDrawing) {
     const size_t transform_count = 5;
     const std::pair<size_t, size_t> size = { 800, 800 };
