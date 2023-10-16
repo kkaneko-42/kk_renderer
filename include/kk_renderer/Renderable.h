@@ -1,22 +1,14 @@
 #pragma once
 
-#include "RenderingContext.h"
-#include "Transform.h"
+#include <memory>
 #include "Geometry.h"
-#include "ResourceDescriptor.h"
-#include "Buffer.h"
-#include "Texture.h"
+#include "Material.h"
 
 namespace kk {
     namespace renderer {
         struct Renderable {
-            static Renderable create(RenderingContext& ctx, const Geometry& geometry_value, std::shared_ptr<Texture> texture = nullptr);
-            void destroy(RenderingContext& ctx);
-
-            Transform transform;
-            Geometry geometry;
-
-            std::array<ResourceDescriptor, kMaxConcurrentFrames> resources;
+            std::shared_ptr<Geometry> geometry;
+            std::shared_ptr<Material> material;
         };
     }
 }

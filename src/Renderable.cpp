@@ -4,7 +4,8 @@
 
 using namespace kk::renderer;
 
-Renderable Renderable::create(RenderingContext& ctx, const Geometry& geometry_value, std::shared_ptr<Texture> texture) {
+/*
+Renderable Renderable::create(RenderingContext& ctx, const Geometry& geometry_value, const Material& material) {
     Renderable renderable{};
     renderable.geometry = geometry_value;
 
@@ -40,10 +41,4 @@ Renderable Renderable::create(RenderingContext& ctx, const Geometry& geometry_va
 
     return renderable;
 }
-
-void Renderable::destroy(RenderingContext& ctx) {
-    vkDeviceWaitIdle(ctx.device);
-    for (auto& res : resources) {
-        res.destroy(ctx);
-    }
-}
+*/

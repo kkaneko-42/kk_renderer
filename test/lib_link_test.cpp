@@ -14,8 +14,10 @@ TEST(LibLinkTest, LibLinkTest) {
 
     std::cout << extensionCount << " extensions supported\n";
 
-    while(!glfwWindowShouldClose(window)) {
+    size_t i = 0;
+    while(!glfwWindowShouldClose(window) && i < 10) {
         glfwPollEvents();
+        ++i;
     }
 
     glfwDestroyWindow(window);

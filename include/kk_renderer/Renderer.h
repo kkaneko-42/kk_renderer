@@ -1,10 +1,10 @@
 #pragma once
 
+#include <vulkan/vulkan.h>
 #include "RenderingContext.h"
 #include "Swapchain.h"
 #include "Geometry.h"
 #include "Transform.h"
-#include "ResourceDescriptor.h"
 #include "Renderable.h"
 #include "Camera.h"
 
@@ -17,16 +17,10 @@ namespace kk {
 
             bool beginFrame(RenderingContext& ctx, Swapchain& swapchain);
             void endFrame(RenderingContext& ctx, Swapchain& swapchain);
-            void recordCommands();
-            void render(const Geometry& geometry);
-            void render(Renderable& renderable);
-            void render(Renderable& renderable, const Camera& camera);
+            void render(RenderingContext& ctx, Renderable& renderable, const Transform& transform, const Camera& camera);
 
         private:
             VkRenderPass render_pass_;
-            VkPipelineLayout pipeline_layout_;
-            VkPipeline pipeline_;
-            VkDescriptorSetLayout desc_layout_;
 
             std::array<VkFramebuffer, kMaxConcurrentFrames> framebuffers_; // CONCERN
             std::array<VkCommandBuffer, kMaxConcurrentFrames> cmd_bufs_;
