@@ -18,24 +18,24 @@ Shader Shader::create(RenderingContext& ctx, const std::string& path) {
 
     Shader shader;
     // getReflection(code, shader);
-    if (path == "triangle.vert.spv") {
+    if (path.find("triangle.vert.spv") != std::string::npos) {
         shader.bindings[0].binding = 0;
         shader.bindings[0].descriptorCount = 1;
         shader.bindings[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
         shader.bindings[0].stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
         shader.bindings[0].pImmutableSamplers = nullptr;
     }
-    else if (path == "triangle.frag.spv") {
+    else if (path.find("triangle.frag.spv") != std::string::npos) {
 
     }
-    else if (path == "texture.vert.spv") {
+    else if (path.find("texture.vert.spv") != std::string::npos) {
         shader.bindings[0].binding = 0;
         shader.bindings[0].descriptorCount = 1;
         shader.bindings[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
         shader.bindings[0].stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
         shader.bindings[0].pImmutableSamplers = nullptr;
     }
-    else if (path == "texture.frag.spv") {
+    else if (path.find("texture.frag.spv") != std::string::npos) {
         shader.bindings[1].binding = 1;
         shader.bindings[1].descriptorCount = 1;
         shader.bindings[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
@@ -50,6 +50,10 @@ Shader Shader::create(RenderingContext& ctx, const std::string& path) {
     assert(vkCreateShaderModule(ctx.device, &info, nullptr, &shader.module) == VK_SUCCESS);
 
     return shader;
+}
+
+void Shader::destroy(RenderingContext& ctx) {
+    vkDestroyShaderModule(ctx.device, module, nullptr);
 }
 
 static std::vector<char> readFile(const std::string& path) {

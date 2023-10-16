@@ -1,7 +1,7 @@
 #pragma once
 
 #include <memory>
-#include "ResourceDescriptor.h"
+#include "RenderingContext.h"
 #include "Texture.h"
 #include "Buffer.h"
 #include "Shader.h"
@@ -11,6 +11,8 @@ namespace kk {
         class Material {
         public:
             Material();
+
+            void destroy(RenderingContext& ctx);
 
             void setVertexShader(const std::shared_ptr<Shader>& vert);
             void setFragmentShader(const std::shared_ptr<Shader>& frag);

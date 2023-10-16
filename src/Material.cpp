@@ -13,6 +13,13 @@ Material::Material() :
     setDefault();
 }
 
+void Material::destroy(RenderingContext& ctx) {
+    vkFreeDescriptorSets(ctx.device, ctx.desc_pool, static_cast<uint32_t>(desc_sets_.size()), desc_sets_.data());
+    vkDestroyPipeline(ctx.device, pipeline_, nullptr);
+    vkDestroyPipelineLayout(ctx.device, pipeline_layout_, nullptr);
+    vkDestroyDescriptorSetLayout(ctx.device, desc_layout_, nullptr);
+}
+
 void Material::setVertexShader(const std::shared_ptr<Shader>& vert) {
     shaders_[VK_SHADER_STAGE_VERTEX_BIT] = vert;
     is_compiled_ = false;
@@ -92,6 +99,7 @@ void Material::buildDescLayout(RenderingContext& ctx) {
 void Material::buildDescSets(RenderingContext& ctx, VkDescriptorSetLayout layout) {
     for (size_t i = 0; i < kMaxConcurrentFrames; ++i) {
         VkDescriptorSetAllocateInfo alloc_info{};
+        alloc_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
         alloc_info.descriptorPool = ctx.desc_pool;
         alloc_info.descriptorSetCount = 1;
         alloc_info.pSetLayouts = &layout;
@@ -201,14 +209,17 @@ void Material::buildPipeline(RenderingContext& ctx, VkRenderPass render_pass, Vk
 }
 
 void Material::setDefault() {
+    input_asm_ = {};
     input_asm_.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
     input_asm_.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
     input_asm_.primitiveRestartEnable = VK_FALSE;
 
+    viewport_ = {};
     viewport_.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
     viewport_.viewportCount = 1;
     viewport_.scissorCount = 1;
 
+    rasterizer_ = {};
     rasterizer_.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
     rasterizer_.depthClampEnable = VK_FALSE;
     rasterizer_.rasterizerDiscardEnable = VK_FALSE;
@@ -218,6 +229,7 @@ void Material::setDefault() {
     rasterizer_.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
     rasterizer_.depthBiasEnable = VK_FALSE;
 
+    multisampling_ = {};
     multisampling_.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
     multisampling_.sampleShadingEnable = VK_FALSE;
     multisampling_.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
@@ -226,6 +238,7 @@ void Material::setDefault() {
     blend_attachments_[0].colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
     blend_attachments_[0].blendEnable = VK_FALSE;
 
+    color_blending_ = {};
     color_blending_.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
     color_blending_.logicOpEnable = VK_FALSE;
     color_blending_.logicOp = VK_LOGIC_OP_COPY;

@@ -1,6 +1,9 @@
 #include <gtest/gtest.h>
 #include <GLFW/glfw3.h>
 #include "kk_renderer/kk_renderer.h"
+#ifndef TEST_RESOURCE_DIR
+#define TEST_RESOURCE_DIR "./resources"
+#endif
 
 using namespace kk::renderer;
 
@@ -13,7 +16,7 @@ static const std::vector<Vertex> kTriangleVertices = {
 static const std::vector<uint32_t> kTriangleIndices = {
     0, 1, 2
 };
-/*
+
 TEST(DrawTriangleTest, BufferCreation) {
     RenderingContext ctx = RenderingContext::create();
     Buffer buf = Buffer::create(
@@ -34,50 +37,31 @@ TEST(DrawTriangleTest, GeometryCreation) {
     ctx.destroy();
 }
 
-TEST(DrawTriangleTest, DISABLED_GeometryDrawing) {
+TEST(DrawTriangleTest, MaterialCreation) {
     const std::pair<size_t, size_t> size = { 800, 800 };
-    const std::string name = "draw triangle test";
+    const std::string name = "material creation test";
     Window window = Window::create(size.first, size.second, name);
     RenderingContext ctx = RenderingContext::create();
     Swapchain swapchain = Swapchain::create(ctx, window);
-
-    Geometry triangle = Geometry::create(ctx, kTriangleVertices, kTriangleIndices);
     Renderer renderer = Renderer::create(ctx, swapchain);
-    while (!window.isClosed()) {
-        window.pollEvents();
-        if (renderer.beginFrame(ctx, swapchain)) {
-            renderer.render(triangle);
-            renderer.endFrame(ctx, swapchain);
-        }
-    }
 
-    triangle.destroy(ctx);
+    auto vert = std::make_shared<Shader>(Shader::create(ctx, TEST_RESOURCE_DIR + std::string("/shaders/triangle.vert.spv")));
+    auto frag = std::make_shared<Shader>(Shader::create(ctx, TEST_RESOURCE_DIR + std::string("/shaders/triangle.frag.spv")));
+    auto material = std::make_shared<Material>();
+    material->setVertexShader(vert);
+    material->setFragmentShader(frag);
+    renderer.compileMaterial(ctx, material);
+
+    material->destroy(ctx);
+    vert->destroy(ctx);
+    frag->destroy(ctx);
     renderer.destroy(ctx);
     swapchain.destroy(ctx);
     ctx.destroy();
     window.destroy();
 }
 
-TEST(DrawTriangleTest, DescriptorSetCreation) {
-    RenderingContext ctx = RenderingContext::create();
-    Buffer buf = Buffer::create(
-        ctx,
-        sizeof(float) * 1,
-        VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
-    );
-
-    ResourceDescriptor resource_descriptor;
-    resource_descriptor.bindBuffer(0, std::make_shared<Buffer>(buf), VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT);
-    resource_descriptor.buildSet(ctx);
-    VkDescriptorSetLayout layout = resource_descriptor.getLayout();
-    VkDescriptorSet set = resource_descriptor.getSet();
-
-    vkDestroyDescriptorSetLayout(ctx.device, layout, nullptr);
-    buf.destroy(ctx);
-    ctx.destroy();
-}
-
+/*
 template <class TransformedObject>
 static void handleKey(int code, int state, TransformedObject& obj) {
     if (state == GLFW_RELEASE) {

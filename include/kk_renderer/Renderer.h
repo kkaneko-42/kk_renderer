@@ -19,6 +19,8 @@ namespace kk {
             void endFrame(RenderingContext& ctx, Swapchain& swapchain);
             void render(RenderingContext& ctx, Renderable& renderable, const Transform& transform, const Camera& camera);
 
+            void compileMaterial(RenderingContext& ctx, std::shared_ptr<Material> material);
+
         private:
             VkRenderPass render_pass_;
 

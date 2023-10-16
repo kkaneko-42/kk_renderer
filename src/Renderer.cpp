@@ -193,6 +193,10 @@ void Renderer::render(RenderingContext& ctx, Renderable& renderable, const Trans
     vkCmdDrawIndexed(cmd_buf, static_cast<uint32_t>(geometry.indices.size()), 1, 0, 0, 0);
 }
 
+void Renderer::compileMaterial(RenderingContext& ctx, std::shared_ptr<Material> material) {
+    material->compile(ctx, render_pass_);
+}
+
 static VkRenderPass createRenderPass(RenderingContext& ctx, VkFormat swapchain_format /* TODO: remove swapchain_format */) {
     VkAttachmentDescription color_attachment{};
     color_attachment.format = swapchain_format;
