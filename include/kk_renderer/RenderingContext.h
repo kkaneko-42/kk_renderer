@@ -7,7 +7,7 @@
 
 namespace kk {
     namespace renderer {
-        constexpr size_t kMaxConcurrentFrames = 3;
+        constexpr size_t kMaxConcurrentFrames = 2;
 
         struct RenderingContext {
             VkInstance instance;

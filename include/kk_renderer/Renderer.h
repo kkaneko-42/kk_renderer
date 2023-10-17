@@ -24,7 +24,7 @@ namespace kk {
         private:
             VkRenderPass render_pass_;
 
-            std::array<VkFramebuffer, kMaxConcurrentFrames> framebuffers_; // CONCERN
+            std::vector<VkFramebuffer> framebuffers_;
             std::array<VkCommandBuffer, kMaxConcurrentFrames> cmd_bufs_;
             size_t current_frame_;
             uint32_t img_idx_;

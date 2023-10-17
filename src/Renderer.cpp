@@ -7,7 +7,7 @@
 using namespace kk::renderer;
 
 static VkRenderPass createRenderPass(RenderingContext& ctx, VkFormat swapchain_format);
-static std::array<VkFramebuffer, kMaxConcurrentFrames> createFramebuffers(RenderingContext& ctx, Swapchain& swapchain, VkRenderPass render_pass);
+static std::vector<VkFramebuffer> createFramebuffers(RenderingContext& ctx, Swapchain& swapchain, VkRenderPass render_pass);
 
 Renderer Renderer::create(RenderingContext& ctx, Swapchain& swapchain) {
     Renderer renderer{};
@@ -240,9 +240,9 @@ static VkRenderPass createRenderPass(RenderingContext& ctx, VkFormat swapchain_f
     return render_pass;
 }
 
-static std::array<VkFramebuffer, kMaxConcurrentFrames> createFramebuffers(RenderingContext& ctx, Swapchain& swapchain, VkRenderPass render_pass) {
-    std::array<VkFramebuffer, kMaxConcurrentFrames> framebuffers;
-    for (size_t i = 0; i < kMaxConcurrentFrames; i++) {
+static std::vector<VkFramebuffer> createFramebuffers(RenderingContext& ctx, Swapchain& swapchain, VkRenderPass render_pass) {
+    std::vector<VkFramebuffer> framebuffers(swapchain.images.size());
+    for (size_t i = 0; i < swapchain.images.size(); i++) {
         VkImageView attachments[] = {
             swapchain.views[i]
         };
