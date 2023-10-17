@@ -20,9 +20,7 @@ namespace kk {
                 uint32_t binding,
                 const std::shared_ptr<Buffer>& buffer,
                 VkDescriptorType type,
-                VkShaderStageFlags stage,
-                VkDeviceSize offset = 0,
-                VkDeviceSize range = VK_WHOLE_SIZE
+                VkShaderStageFlags stage
             );
             void setTexture(
                 uint32_t binding,

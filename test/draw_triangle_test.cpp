@@ -91,19 +91,10 @@ TEST(DrawTriangleTest, TransformedGeometryDrawing) {
     auto triangle = std::make_shared<Geometry>(Geometry::create(ctx, kTriangleVertices, kTriangleIndices));
     auto vert = std::make_shared<Shader>(Shader::create(ctx, TEST_RESOURCE_DIR + std::string("/shaders/triangle.vert.spv")));
     auto frag = std::make_shared<Shader>(Shader::create(ctx, TEST_RESOURCE_DIR + std::string("/shaders/triangle.frag.spv")));
-    auto uniform = std::make_shared<Buffer>(Buffer::create(
-        ctx,
-        sizeof(Mat4),
-        VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
-    ));
-    vkMapMemory(ctx.device, uniform->memory, 0, uniform->size, 0, &uniform->mapped);
     auto material = std::make_shared<Material>();
-    material->setBuffer(0, uniform, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT);
     material->setVertexShader(vert);
     material->setFragmentShader(frag);
-    Renderable::createUniformBuffers(ctx, 16);
-    Renderable renderable{ triangle, material };
+    Renderable renderable = Renderable::create(ctx, triangle, material);
     Transform tf;
     PerspectiveCamera camera(45.0f, swapchain.extent.width / (float)swapchain.extent.height, 0.1f, 10.0f);
     camera.transform.position.z = -2.0f;
@@ -119,9 +110,7 @@ TEST(DrawTriangleTest, TransformedGeometryDrawing) {
     }
 
     vkDeviceWaitIdle(ctx.device);
-    Renderable::destroyUniformBuffers(ctx);
     material->destroy(ctx);
-    uniform->destroy(ctx);
     frag->destroy(ctx);
     vert->destroy(ctx);
     triangle->destroy(ctx);
@@ -144,23 +133,13 @@ TEST(DrawTriangleTest, MultipleTransformDrawing) {
     auto vert = std::make_shared<Shader>(Shader::create(ctx, TEST_RESOURCE_DIR + std::string("/shaders/triangle.vert.spv")));
     auto frag = std::make_shared<Shader>(Shader::create(ctx, TEST_RESOURCE_DIR + std::string("/shaders/triangle.frag.spv")));
     auto material = std::make_shared<Material>();
-    /*
-    auto uniform = std::make_shared<Buffer>(Buffer::create(
-        ctx,
-        sizeof(Mat4),
-        VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
-    ));
-    vkMapMemory(ctx.device, uniform->memory, 0, uniform->size, 0, &uniform->mapped);
-    material->setBuffer(0, uniform, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT);
-    */
     material->setVertexShader(vert);
     material->setFragmentShader(frag);
-    Renderable::createUniformBuffers(ctx, 16);
-    std::vector<Renderable> renderables(triangle_count, {triangle, material});
+    std::vector<Renderable> renderables(triangle_count);
     std::vector<Transform> transforms(triangle_count);
     for (size_t i = 0; i < triangle_count; ++i) {
-        transforms[i].position.x = i / 0.5f;
+        renderables[i] = Renderable::create(ctx, triangle, material);
+        transforms[i].position.x = i / 0.2f;
         transforms[i].scale = Vec3(0.5f, 0.5f, 0.5f);
     }
     PerspectiveCamera camera(45.0f, swapchain.extent.width / (float)swapchain.extent.height, 0.1f, 10.0f);
@@ -182,7 +161,6 @@ TEST(DrawTriangleTest, MultipleTransformDrawing) {
     }
 
     vkDeviceWaitIdle(ctx.device);
-    Renderable::destroyUniformBuffers(ctx);
     material->destroy(ctx);
     frag->destroy(ctx);
     vert->destroy(ctx);

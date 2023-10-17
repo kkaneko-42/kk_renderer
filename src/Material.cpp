@@ -18,6 +18,11 @@ void Material::destroy(RenderingContext& ctx) {
     vkDestroyPipeline(ctx.device, pipeline_, nullptr);
     vkDestroyPipelineLayout(ctx.device, pipeline_layout_, nullptr);
     vkDestroyDescriptorSetLayout(ctx.device, desc_layout_, nullptr);
+
+    // Release resources
+    for (auto& binding : bindings_) {
+        binding.resource.reset();
+    }
 }
 
 void Material::setVertexShader(const std::shared_ptr<Shader>& vert) {
@@ -34,9 +39,7 @@ void Material::setBuffer(
     uint32_t binding,
     const std::shared_ptr<Buffer>& buffer,
     VkDescriptorType type,
-    VkShaderStageFlags stage,
-    VkDeviceSize offset,
-    VkDeviceSize range
+    VkShaderStageFlags stage
 ) {
     VkDescriptorSetLayoutBinding layout_binding{};
     layout_binding.binding = binding;
@@ -46,8 +49,8 @@ void Material::setBuffer(
 
     std::shared_ptr<VkDescriptorBufferInfo> buf_info(new VkDescriptorBufferInfo());
     buf_info->buffer = buffer->buffer;
-    buf_info->offset = offset;
-    buf_info->range = range;
+    buf_info->offset = 0;
+    buf_info->range = buffer->size;
 
     addBindingInfo(layout_binding, std::move(buf_info), buffer);
 
