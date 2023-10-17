@@ -20,7 +20,9 @@ namespace kk {
                 uint32_t binding,
                 const std::shared_ptr<Buffer>& buffer,
                 VkDescriptorType type,
-                VkShaderStageFlags stage
+                VkShaderStageFlags stage,
+                VkDeviceSize offset = 0,
+                VkDeviceSize range = VK_WHOLE_SIZE
             );
             void setTexture(
                 uint32_t binding,
@@ -41,11 +43,23 @@ namespace kk {
             }
 
         private:
+            struct ResourceBindingInfo {
+                VkDescriptorSetLayoutBinding layout;
+                std::shared_ptr<void> bind_info;
+                std::shared_ptr<void> resource;
+            };
+
             void setDefault();
             void buildDescLayout(RenderingContext& ctx);
             void buildDescSets(RenderingContext& ctx, VkDescriptorSetLayout layout);
             void buildPipelineLayout(RenderingContext& ctx, VkDescriptorSetLayout desc_layout);
             void buildPipeline(RenderingContext& ctx, VkPipelineLayout layout, VkRenderPass render_pass);
+
+            void addBindingInfo(
+                const VkDescriptorSetLayoutBinding& layout,
+                const std::shared_ptr<void>& bind_info,
+                const std::shared_ptr<void>& resource
+            );
 
             bool is_compiled_;
 
@@ -61,7 +75,8 @@ namespace kk {
             VkPipelineLayout pipeline_layout_;
             VkPipeline pipeline_;
 
-            std::unordered_map<uint32_t, std::pair<VkDescriptorSetLayoutBinding, std::shared_ptr<void>>> resources_;
+            // NOTE: LayoutBinding |-> (bind info, bind resource)
+            std::vector<ResourceBindingInfo> bindings_;
             VkDescriptorSetLayout desc_layout_;
             std::array<VkDescriptorSet, kMaxConcurrentFrames> desc_sets_;
         };

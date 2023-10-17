@@ -168,7 +168,8 @@ void Renderer::render(RenderingContext& ctx, Renderable& renderable, const Trans
     const Mat4 mvp = proj * view * model;
 
     // Copy MVP to uniform buffer
-    std::memcpy(material.getBuffer(0)->mapped, &mvp, sizeof(Mat4));
+    unsigned char* dst = static_cast<unsigned char*>(material.getBuffer(0)->mapped) + (sizeof(Mat4) * renderable.id);
+    std::memcpy(dst, &mvp, sizeof(Mat4));
 
     // Set descriptor
     VkDescriptorSet desc_set = material.getDescriptorSets()[current_frame_];

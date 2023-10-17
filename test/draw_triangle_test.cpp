@@ -102,6 +102,7 @@ TEST(DrawTriangleTest, TransformedGeometryDrawing) {
     material->setBuffer(0, uniform, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT);
     material->setVertexShader(vert);
     material->setFragmentShader(frag);
+    Renderable::createUniformBuffers(ctx, 16);
     Renderable renderable{ triangle, material };
     Transform tf;
     PerspectiveCamera camera(45.0f, swapchain.extent.width / (float)swapchain.extent.height, 0.1f, 10.0f);
@@ -118,6 +119,7 @@ TEST(DrawTriangleTest, TransformedGeometryDrawing) {
     }
 
     vkDeviceWaitIdle(ctx.device);
+    Renderable::destroyUniformBuffers(ctx);
     material->destroy(ctx);
     uniform->destroy(ctx);
     frag->destroy(ctx);
@@ -128,76 +130,65 @@ TEST(DrawTriangleTest, TransformedGeometryDrawing) {
     ctx.destroy();
     window.destroy();
 }
-/*
+
 TEST(DrawTriangleTest, MultipleTransformDrawing) {
-    const size_t transform_count = 5;
+    const size_t triangle_count = 5;
     const std::pair<size_t, size_t> size = { 800, 800 };
-    const std::string name = "multiple transform triangle test";
+    const std::string name = "multiple transform test";
     Window window = Window::create(size.first, size.second, name);
     RenderingContext ctx = RenderingContext::create();
     Swapchain swapchain = Swapchain::create(ctx, window);
 
-    // Prepare objects
-    Geometry triangle = Geometry::create(ctx, kTriangleVertices, kTriangleIndices);
-    std::vector<Renderable> renderables(transform_count);
-    for (size_t i = 0; i < transform_count; ++i) {
-        renderables[i] = Renderable::create(ctx, triangle);
-        renderables[i].transform.position.x = (transform_count / 2.0f - i) / 2.0f;
-        renderables[i].transform.scale = glm::vec3(0.5f);
+    // Prepare an object
+    auto triangle = std::make_shared<Geometry>(Geometry::create(ctx, kTriangleVertices, kTriangleIndices));
+    auto vert = std::make_shared<Shader>(Shader::create(ctx, TEST_RESOURCE_DIR + std::string("/shaders/triangle.vert.spv")));
+    auto frag = std::make_shared<Shader>(Shader::create(ctx, TEST_RESOURCE_DIR + std::string("/shaders/triangle.frag.spv")));
+    auto material = std::make_shared<Material>();
+    /*
+    auto uniform = std::make_shared<Buffer>(Buffer::create(
+        ctx,
+        sizeof(Mat4),
+        VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
+    ));
+    vkMapMemory(ctx.device, uniform->memory, 0, uniform->size, 0, &uniform->mapped);
+    material->setBuffer(0, uniform, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT);
+    */
+    material->setVertexShader(vert);
+    material->setFragmentShader(frag);
+    Renderable::createUniformBuffers(ctx, 16);
+    std::vector<Renderable> renderables(triangle_count, {triangle, material});
+    std::vector<Transform> transforms(triangle_count);
+    for (size_t i = 0; i < triangle_count; ++i) {
+        transforms[i].position.x = i / 0.5f;
+        transforms[i].scale = Vec3(0.5f, 0.5f, 0.5f);
     }
-   
+    PerspectiveCamera camera(45.0f, swapchain.extent.width / (float)swapchain.extent.height, 0.1f, 10.0f);
+    camera.transform.position.z = -2.0f;
+
     Renderer renderer = Renderer::create(ctx, swapchain);
     while (!window.isClosed()) {
         window.pollEvents();
+        for (size_t i = 0; i < triangle_count; ++i) {
+            handleKey(window, transforms[i]);
+        }
+        
         if (renderer.beginFrame(ctx, swapchain)) {
-            for (auto& r : renderables) {
-                renderer.render(r);
+            for (size_t i = 0; i < triangle_count; ++i) {
+                renderer.render(ctx, renderables[i], transforms[i], camera);
             }
             renderer.endFrame(ctx, swapchain);
         }
     }
 
-    for (auto& r : renderables) {
-        r.destroy(ctx);
-    }
-    triangle.destroy(ctx);
+    vkDeviceWaitIdle(ctx.device);
+    Renderable::destroyUniformBuffers(ctx);
+    material->destroy(ctx);
+    frag->destroy(ctx);
+    vert->destroy(ctx);
+    triangle->destroy(ctx);
     renderer.destroy(ctx);
     swapchain.destroy(ctx);
     ctx.destroy();
     window.destroy();
 }
-
-TEST(DrawTriangleTest, CameraDrawing) {
-    const std::pair<size_t, size_t> size = { 800, 800 };
-    const std::string name = "camera triangle test";
-    Window window = Window::create(size.first, size.second, name);
-    RenderingContext ctx = RenderingContext::create();
-    Swapchain swapchain = Swapchain::create(ctx, window);
-
-    // Prepare objects
-    Geometry triangle = Geometry::create(ctx, kTriangleVertices, kTriangleIndices);
-    Renderable renderable = Renderable::create(ctx, triangle);
-    PerspectiveCamera camera(45.0f, swapchain.extent.width / (float)swapchain.extent.height, 0.1f, 10.0f);
-    camera.transform.position = kk::Vec3(0.0f, 0.0f, -2.0f);
-
-    Renderer renderer = Renderer::create(ctx, swapchain);
-    while (!window.isClosed()) {
-        window.pollEvents();
-        handleKey(GLFW_KEY_W, glfwGetKey(static_cast<GLFWwindow*>(window.acquireHandle()), GLFW_KEY_W), camera);
-        handleKey(GLFW_KEY_A, glfwGetKey(static_cast<GLFWwindow*>(window.acquireHandle()), GLFW_KEY_A), camera);
-        handleKey(GLFW_KEY_S, glfwGetKey(static_cast<GLFWwindow*>(window.acquireHandle()), GLFW_KEY_S), camera);
-        handleKey(GLFW_KEY_D, glfwGetKey(static_cast<GLFWwindow*>(window.acquireHandle()), GLFW_KEY_D), camera);
-        if (renderer.beginFrame(ctx, swapchain)) {
-            renderer.render(renderable, camera);
-            renderer.endFrame(ctx, swapchain);
-        }
-    }
-
-    renderable.destroy(ctx);
-    triangle.destroy(ctx);
-    renderer.destroy(ctx);
-    swapchain.destroy(ctx);
-    ctx.destroy();
-    window.destroy();
-}
-*/

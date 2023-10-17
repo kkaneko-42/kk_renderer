@@ -34,7 +34,9 @@ void Material::setBuffer(
     uint32_t binding,
     const std::shared_ptr<Buffer>& buffer,
     VkDescriptorType type,
-    VkShaderStageFlags stage
+    VkShaderStageFlags stage,
+    VkDeviceSize offset,
+    VkDeviceSize range
 ) {
     VkDescriptorSetLayoutBinding layout_binding{};
     layout_binding.binding = binding;
@@ -42,8 +44,12 @@ void Material::setBuffer(
     layout_binding.descriptorType = type;
     layout_binding.stageFlags = stage;
 
-    resources_[binding].first = layout_binding;
-    resources_[binding].second = std::static_pointer_cast<void>(buffer);
+    std::shared_ptr<VkDescriptorBufferInfo> buf_info(new VkDescriptorBufferInfo());
+    buf_info->buffer = buffer->buffer;
+    buf_info->offset = offset;
+    buf_info->range = range;
+
+    addBindingInfo(layout_binding, std::move(buf_info), buffer);
 
     is_compiled_ = false;
 }
@@ -60,15 +66,20 @@ void Material::setTexture(
     layout_binding.descriptorType = type;
     layout_binding.stageFlags = stage;
 
-    resources_[binding].first = layout_binding;
-    resources_[binding].second = std::static_pointer_cast<void>(texture);
+    std::shared_ptr<VkDescriptorImageInfo> img_info(new VkDescriptorImageInfo());
+    // img_info->imageLayout = texture->layout;
+    img_info->imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL; // TODO: support other layout
+    img_info->imageView = texture->view;
+    img_info->sampler = texture->sampler;
+
+    addBindingInfo(layout_binding, std::move(img_info), texture);
 
     is_compiled_ = false;
 }
 
 std::shared_ptr<Buffer> Material::getBuffer(uint32_t binding) {
     // TODO: Validation
-    return std::static_pointer_cast<Buffer>(resources_[binding].second);
+    return std::static_pointer_cast<Buffer>(bindings_[binding].resource);
 }
 
 void Material::compile(RenderingContext& ctx, VkRenderPass render_pass) {
@@ -83,9 +94,9 @@ void Material::compile(RenderingContext& ctx, VkRenderPass render_pass) {
 }
 
 void Material::buildDescLayout(RenderingContext& ctx) {
-    std::vector<VkDescriptorSetLayoutBinding> bindings(resources_.size());
-    for (uint32_t i = 0; i < resources_.size(); ++i) {
-        bindings[i] = resources_[i].first;
+    std::vector<VkDescriptorSetLayoutBinding> bindings(bindings_.size());
+    for (uint32_t i = 0; i < bindings_.size(); ++i) {
+        bindings[i] = bindings_[i].layout;
     }
 
     VkDescriptorSetLayoutCreateInfo info{};
@@ -105,43 +116,28 @@ void Material::buildDescSets(RenderingContext& ctx, VkDescriptorSetLayout layout
         alloc_info.pSetLayouts = &layout;
         assert(vkAllocateDescriptorSets(ctx.device, &alloc_info, &desc_sets_[i]) == VK_SUCCESS);
 
-        for (const auto& kvp : resources_) {
-            const uint32_t binding = kvp.first;
-            const VkDescriptorSetLayoutBinding layout_binding = kvp.second.first;
-            const void* resource = kvp.second.second.get();
+        for (const auto& bind_info : bindings_) {
+            const uint32_t binding = bind_info.layout.binding;
 
             VkWriteDescriptorSet desc_write{};
             desc_write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
             desc_write.dstSet = desc_sets_[i];
             desc_write.dstBinding = binding;
-            desc_write.descriptorType = layout_binding.descriptorType;
+            desc_write.descriptorType = bind_info.layout.descriptorType;
             desc_write.descriptorCount = 1;
 
-            // Create descriptor resource info
-            VkDescriptorBufferInfo buf_info{};
-            VkDescriptorImageInfo tex_info{};
-            switch (layout_binding.descriptorType) {
-            case VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER: { // NOTE: buf_resource should be scoped
-                const Buffer* buf_resource = static_cast<const Buffer*>(resource);
-                buf_info.buffer = buf_resource->buffer;
-                buf_info.offset = 0;
-                buf_info.range = buf_resource->size;
-                desc_write.pBufferInfo = &buf_info;
+            switch (bind_info.layout.descriptorType) {
+            case VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER:
+                desc_write.pBufferInfo = static_cast<VkDescriptorBufferInfo*>(bind_info.bind_info.get());
                 break;
-            }
 
             case VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER: {
-                const Texture* tex_resource = static_cast<const Texture*>(resource);
-                // tex_info.imageLayout = tex_resource->layout;
-                tex_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL; // TODO: support other layout
-                tex_info.imageView = tex_resource->view;
-                tex_info.sampler = tex_resource->sampler;
-                desc_write.pImageInfo = &tex_info;
+                desc_write.pImageInfo = static_cast<VkDescriptorImageInfo*>(bind_info.bind_info.get());
                 break;
             }
 
             default:
-                std::cerr << "ResourceDescriptor::buildSets(): Error: Unsupported descriptor type: " << layout_binding.descriptorType << std::endl;
+                std::cerr << "ResourceDescriptor::buildSets(): Error: Unsupported descriptor type: " << bind_info.layout.descriptorType << std::endl;
                 assert(false);
                 break;
             }
@@ -250,4 +246,20 @@ void Material::setDefault() {
         VK_DYNAMIC_STATE_VIEWPORT,
         VK_DYNAMIC_STATE_SCISSOR
     };
+}
+
+void Material::addBindingInfo(
+    const VkDescriptorSetLayoutBinding& layout,
+    const std::shared_ptr<void>& bind_info,
+    const std::shared_ptr<void>& resource
+) {
+    const uint32_t binding = layout.binding;
+    if (binding >= bindings_.size()) {
+        // TODO: Avoid frequent allocation
+        bindings_.resize(static_cast<size_t>(layout.binding) + 1);
+    }
+
+    bindings_[binding].layout = layout;
+    bindings_[binding].bind_info = bind_info;
+    bindings_[binding].resource = resource;
 }
