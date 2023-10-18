@@ -191,7 +191,7 @@ void Renderer::prepareRendering(RenderingContext& ctx, Renderable& renderable) {
 
             VkDescriptorImageInfo tex_info{};
             tex_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-            auto& texture = renderable.material->getTexture();
+            auto texture = renderable.material->getTexture();
             tex_info.imageView = texture->view;
             tex_info.sampler = texture->sampler;
             write_texture.pImageInfo = &tex_info;
@@ -328,8 +328,4 @@ static std::vector<VkFramebuffer> createFramebuffers(RenderingContext& ctx, Swap
     }
 
     return framebuffers;
-}
-
-static std::array<ResourceDescriptor, kMaxConcurrentFrames> createUniformBuffers(RenderingContext& ctx) {
-
 }
