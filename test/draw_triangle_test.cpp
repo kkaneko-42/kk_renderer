@@ -119,7 +119,7 @@ TEST(DrawTriangleTest, TransformedGeometryDrawing) {
     ctx.destroy();
     window.destroy();
 }
-/*
+
 TEST(DrawTriangleTest, MultipleTransformDrawing) {
     const size_t triangle_count = 5;
     const std::pair<size_t, size_t> size = { 800, 800 };
@@ -135,11 +135,13 @@ TEST(DrawTriangleTest, MultipleTransformDrawing) {
     auto material = std::make_shared<Material>();
     material->setVertexShader(vert);
     material->setFragmentShader(frag);
-    Renderable renderable_1 = Renderable::create(ctx, triangle, material);
-    Transform transform_1;
-    Renderable renderable_2 = Renderable::create(ctx, triangle, material);
-    Transform transform_2;
-    transform_2.position.x += 0.5f;
+    std::vector<Renderable> renderables(triangle_count);
+    std::vector<Transform> transforms(triangle_count);
+    for (size_t i = 0; i < triangle_count; ++i) {
+        renderables[i] = Renderable(triangle, material);
+        transforms[i].position.x = i / 2.0f;
+        transforms[i].scale = Vec3(0.2f, 0.2f, 0.2f);
+    }
     PerspectiveCamera camera(45.0f, swapchain.extent.width / (float)swapchain.extent.height, 0.1f, 10.0f);
     camera.transform.position.z = -2.0f;
 
@@ -148,8 +150,9 @@ TEST(DrawTriangleTest, MultipleTransformDrawing) {
         window.pollEvents();
         
         if (renderer.beginFrame(ctx, swapchain)) {
-            renderer.render(ctx, renderable_1, transform_1, camera);
-            renderer.render(ctx, renderable_2, transform_2, camera);
+            for (size_t i = 0; i < triangle_count; ++i) {
+                renderer.render(ctx, renderables[i], transforms[i], camera);
+            }
             renderer.endFrame(ctx, swapchain);
         }
     }
@@ -164,4 +167,3 @@ TEST(DrawTriangleTest, MultipleTransformDrawing) {
     ctx.destroy();
     window.destroy();
 }
-*/

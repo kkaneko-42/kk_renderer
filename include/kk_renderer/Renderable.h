@@ -11,6 +11,7 @@
 namespace kk {
     namespace renderer {
         struct Renderable {
+            Renderable() = default;
             Renderable(
                 const std::shared_ptr<Geometry>& geometry,
                 const std::shared_ptr<Material>& material
