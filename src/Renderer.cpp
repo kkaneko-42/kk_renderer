@@ -182,9 +182,23 @@ void Renderer::prepareRendering(RenderingContext& ctx, Renderable& renderable) {
             target_sets.resize(layouts.size());
             assert(vkAllocateDescriptorSets(ctx.device, &alloc_info, target_sets.data()) == VK_SUCCESS);
 
+            VkWriteDescriptorSet write_texture{};
+            write_texture.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+            write_texture.dstSet = target_sets[0];
+            write_texture.dstBinding = 0;
+            write_texture.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+            write_texture.descriptorCount = 1;
+
+            VkDescriptorImageInfo tex_info{};
+            tex_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+            auto& texture = renderable.material->getTexture();
+            tex_info.imageView = texture->view;
+            tex_info.sampler = texture->sampler;
+            write_texture.pImageInfo = &tex_info;
+
             VkWriteDescriptorSet write_uniform{};
             write_uniform.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-            write_uniform.dstSet = target_sets[0];
+            write_uniform.dstSet = target_sets[1];
             write_uniform.dstBinding = 0;
             write_uniform.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
             write_uniform.descriptorCount = 1;
@@ -195,7 +209,8 @@ void Renderer::prepareRendering(RenderingContext& ctx, Renderable& renderable) {
             buf_info.range = uniforms_[renderable.id][i].size;
             write_uniform.pBufferInfo = &buf_info;
 
-            vkUpdateDescriptorSets(ctx.device, 1, &write_uniform, 0, nullptr);
+            VkWriteDescriptorSet writes[] = { write_texture, write_uniform };
+            vkUpdateDescriptorSets(ctx.device, 2, writes, 0, nullptr);
         }
     }
 }

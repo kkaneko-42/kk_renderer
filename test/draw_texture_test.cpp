@@ -7,7 +7,7 @@
 #endif
 
 using namespace kk::renderer;
-/*
+
 class DrawTextureTest : public ::testing::Test {
 protected:
     static void SetUpTestCase() {
@@ -50,7 +50,11 @@ TEST_F(DrawTextureTest, TextureCreation) {
 
     RenderingContext ctx = RenderingContext::create();
     Swapchain swapchain = Swapchain::create(ctx, window);
-    Texture texture = Texture::create(
+
+    auto vert = std::make_shared<Shader>(Shader::create(ctx, TEST_RESOURCE_DIR + std::string("/shaders/texture.vert.spv")));
+    auto frag = std::make_shared<Shader>(Shader::create(ctx, TEST_RESOURCE_DIR + std::string("/shaders/texture.frag.spv")));
+    auto texture = std::make_shared<Texture>();
+    *texture = Texture::create(
         ctx,
         texels_,
         4,
@@ -62,16 +66,18 @@ TEST_F(DrawTextureTest, TextureCreation) {
         VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
         VK_IMAGE_ASPECT_COLOR_BIT
     );
+    auto material = std::make_shared<Material>();
+    material->setVertexShader(vert);
+    material->setFragmentShader(frag);
+    material->setTexture(texture);
 
     Renderer renderer = Renderer::create(ctx, swapchain);
-    while (!window.isClosed()) {
-        window.pollEvents();
-        if (renderer.beginFrame(ctx, swapchain)) {
-            renderer.endFrame(ctx, swapchain);
-        }
-    }
+    renderer.compileMaterial(ctx, material);
 
-    texture.destroy(ctx);
+    material->destroy(ctx);
+    texture->destroy(ctx);
+    frag->destroy(ctx);
+    vert->destroy(ctx);
     renderer.destroy(ctx);
     swapchain.destroy(ctx);
     ctx.destroy();
@@ -80,12 +86,17 @@ TEST_F(DrawTextureTest, TextureCreation) {
 
 TEST_F(DrawTextureTest, TextureDrawing) {
     const std::pair<size_t, size_t> size = { 800, 800 };
-    const std::string name = "create texture test";
+    const std::string name = "draw texture test";
     Window window = Window::create(size.first, size.second, name);
 
     RenderingContext ctx = RenderingContext::create();
     Swapchain swapchain = Swapchain::create(ctx, window);
-    Texture texture = Texture::create(
+
+    auto rect = std::make_shared<Geometry>(Geometry::create(ctx, kVertices, kIndices));
+    auto vert = std::make_shared<Shader>(Shader::create(ctx, TEST_RESOURCE_DIR + std::string("/shaders/texture.vert.spv")));
+    auto frag = std::make_shared<Shader>(Shader::create(ctx, TEST_RESOURCE_DIR + std::string("/shaders/texture.frag.spv")));
+    auto texture = std::make_shared<Texture>();
+    *texture = Texture::create(
         ctx,
         texels_,
         4,
@@ -97,26 +108,33 @@ TEST_F(DrawTextureTest, TextureDrawing) {
         VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
         VK_IMAGE_ASPECT_COLOR_BIT
     );
-    Geometry geometry = Geometry::create(ctx, kVertices, kIndices);
-    Renderable renderable = Renderable::create(ctx, geometry, std::make_shared<Texture>(texture));
+    auto material = std::make_shared<Material>();
+    material->setVertexShader(vert);
+    material->setFragmentShader(frag);
+    material->setTexture(texture);
+
+    Renderable renderable{ rect, material };
+    Transform tf{};
+    PerspectiveCamera camera(45.0f, swapchain.extent.width / (float)swapchain.extent.height, 0.1f, 10.0f);
+    camera.transform.position.z = -2.0f;
 
     Renderer renderer = Renderer::create(ctx, swapchain);
     while (!window.isClosed()) {
         window.pollEvents();
         if (renderer.beginFrame(ctx, swapchain)) {
-            renderer.render(renderable);
+            renderer.render(ctx, renderable, tf, camera);
             renderer.endFrame(ctx, swapchain);
         }
     }
 
     vkDeviceWaitIdle(ctx.device);
-    renderable.destroy(ctx);
-    geometry.destroy(ctx);
-    texture.destroy(ctx);
+    material->destroy(ctx);
+    texture->destroy(ctx);
+    frag->destroy(ctx);
+    vert->destroy(ctx);
+    rect->destroy(ctx);
     renderer.destroy(ctx);
     swapchain.destroy(ctx);
     ctx.destroy();
     window.destroy();
-
 }
-*/

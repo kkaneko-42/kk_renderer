@@ -3,6 +3,7 @@
 #include <cassert>
 #include <iostream>
 #include <algorithm>
+#include <map>
 
 using namespace kk::renderer;
 
@@ -33,7 +34,7 @@ void Material::compile(RenderingContext& ctx, VkRenderPass render_pass) {
 }
 
 void Material::buildDescLayout(RenderingContext& ctx) {
-    std::unordered_map<size_t, std::vector<VkDescriptorSetLayoutBinding>> sets_bindings;
+    std::map<size_t, std::vector<VkDescriptorSetLayoutBinding>> sets_bindings;
 
     // Gather sets bindings
     for (const auto& kvp : vert_->sets_bindings) {
