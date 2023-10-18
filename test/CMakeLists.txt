@@ -7,6 +7,7 @@ set(SRCS
     rendering_loop_test.cpp
 	draw_triangle_test.cpp
 	draw_texture_test.cpp
+	draw_model_test.cpp
     runner.cpp
 )
 set(SHADERS_DIR ${kk_renderer_SOURCE_DIR}/resources/shaders)
@@ -16,6 +17,7 @@ target_include_directories(${PROJECT_NAME} PRIVATE ${kk_renderer_SOURCE_DIR}/ext
 target_include_directories(${PROJECT_NAME} PRIVATE ${kk_renderer_SOURCE_DIR}/external/glfw/include)
 target_include_directories(${PROJECT_NAME} PRIVATE ${kk_renderer_SOURCE_DIR}/external/glm/include)
 target_include_directories(${PROJECT_NAME} PRIVATE ${kk_renderer_SOURCE_DIR}/external/stb/include)
+target_include_directories(${PROJECT_NAME} PRIVATE ${kk_renderer_SOURCE_DIR}/external/tiny/include)
 target_include_directories(${PROJECT_NAME} PRIVATE ${kk_renderer_SOURCE_DIR}/external/googletest/include)
 target_include_directories(${PROJECT_NAME} PRIVATE ${kk_renderer_SOURCE_DIR}/include)
 
