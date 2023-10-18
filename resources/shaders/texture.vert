@@ -1,6 +1,6 @@
 #version 450
 
-layout(binding = 0) uniform UBO {
+layout(set = 1, binding = 0) uniform UBO {
 	mat4 mvp;
 }	ubo;
 
