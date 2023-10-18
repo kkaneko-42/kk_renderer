@@ -18,7 +18,7 @@ static const std::vector<uint32_t> kTriangleIndices = {
     0, 1, 2
 };
 
-/*
+
 TEST(DrawTriangleTest, BufferCreation) {
     RenderingContext ctx = RenderingContext::create();
     Buffer buf = Buffer::create(
@@ -47,9 +47,11 @@ TEST(DrawTriangleTest, MaterialCreation) {
     Swapchain swapchain = Swapchain::create(ctx, window);
     Renderer renderer = Renderer::create(ctx, swapchain);
 
+    auto texture = std::make_shared<Texture>(Texture::create(ctx, TEST_RESOURCE_DIR + std::string("/textures/statue.jpg")));
     auto vert = std::make_shared<Shader>(Shader::create(ctx, TEST_RESOURCE_DIR + std::string("/shaders/triangle.vert.spv")));
     auto frag = std::make_shared<Shader>(Shader::create(ctx, TEST_RESOURCE_DIR + std::string("/shaders/triangle.frag.spv")));
     auto material = std::make_shared<Material>();
+    material->setTexture(texture);
     material->setVertexShader(vert);
     material->setFragmentShader(frag);
     renderer.compileMaterial(ctx, material);
@@ -57,6 +59,7 @@ TEST(DrawTriangleTest, MaterialCreation) {
     material->destroy(ctx);
     vert->destroy(ctx);
     frag->destroy(ctx);
+    texture->destroy(ctx);
     renderer.destroy(ctx);
     swapchain.destroy(ctx);
     ctx.destroy();
@@ -90,9 +93,11 @@ TEST(DrawTriangleTest, TransformedGeometryDrawing) {
     
     // Prepare an object
     auto triangle = std::make_shared<Geometry>(Geometry::create(ctx, kTriangleVertices, kTriangleIndices));
+    auto texture = std::make_shared<Texture>(Texture::create(ctx, TEST_RESOURCE_DIR + std::string("/textures/statue.jpg")));
     auto vert = std::make_shared<Shader>(Shader::create(ctx, TEST_RESOURCE_DIR + std::string("/shaders/triangle.vert.spv")));
     auto frag = std::make_shared<Shader>(Shader::create(ctx, TEST_RESOURCE_DIR + std::string("/shaders/triangle.frag.spv")));
     auto material = std::make_shared<Material>();
+    material->setTexture(texture);
     material->setVertexShader(vert);
     material->setFragmentShader(frag);
     Renderable renderable{ triangle, material };
@@ -114,6 +119,7 @@ TEST(DrawTriangleTest, TransformedGeometryDrawing) {
     material->destroy(ctx);
     frag->destroy(ctx);
     vert->destroy(ctx);
+    texture->destroy(ctx);
     triangle->destroy(ctx);
     renderer.destroy(ctx);
     swapchain.destroy(ctx);
@@ -131,9 +137,11 @@ TEST(DrawTriangleTest, MultipleTransformDrawing) {
 
     // Prepare an object
     auto triangle = std::make_shared<Geometry>(Geometry::create(ctx, kTriangleVertices, kTriangleIndices));
+    auto texture = std::make_shared<Texture>(Texture::create(ctx, TEST_RESOURCE_DIR + std::string("/textures/statue.jpg")));
     auto vert = std::make_shared<Shader>(Shader::create(ctx, TEST_RESOURCE_DIR + std::string("/shaders/triangle.vert.spv")));
     auto frag = std::make_shared<Shader>(Shader::create(ctx, TEST_RESOURCE_DIR + std::string("/shaders/triangle.frag.spv")));
     auto material = std::make_shared<Material>();
+    material->setTexture(texture);
     material->setVertexShader(vert);
     material->setFragmentShader(frag);
     std::vector<Renderable> renderables(triangle_count);
@@ -162,10 +170,10 @@ TEST(DrawTriangleTest, MultipleTransformDrawing) {
     material->destroy(ctx);
     frag->destroy(ctx);
     vert->destroy(ctx);
+    texture->destroy(ctx);
     triangle->destroy(ctx);
     renderer.destroy(ctx);
     swapchain.destroy(ctx);
     ctx.destroy();
     window.destroy();
 }
-*/

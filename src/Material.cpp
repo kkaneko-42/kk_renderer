@@ -37,10 +37,8 @@ void Material::buildDescLayout(RenderingContext& ctx) {
     std::map<size_t, std::vector<VkDescriptorSetLayoutBinding>> sets_bindings;
 
     // Gather sets bindings
+    // TODO: Gather either vert shader and frag shader (using reflection)
     for (const auto& kvp : vert_->sets_bindings) {
-        sets_bindings[kvp.first].insert(sets_bindings[kvp.first].end(), kvp.second.begin(), kvp.second.end());
-    }
-    for (const auto& kvp : frag_->sets_bindings) {
         sets_bindings[kvp.first].insert(sets_bindings[kvp.first].end(), kvp.second.begin(), kvp.second.end());
     }
 
