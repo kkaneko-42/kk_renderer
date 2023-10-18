@@ -33,25 +33,23 @@ void Material::compile(RenderingContext& ctx, VkRenderPass render_pass) {
 }
 
 void Material::buildDescLayout(RenderingContext& ctx) {
-    const auto& vert_sets = vert_->sets_bindings;
-    const auto& frag_sets = frag_->sets_bindings;
+    std::unordered_map<size_t, std::vector<VkDescriptorSetLayoutBinding>> sets_bindings;
 
-    for (size_t i = 0; i < std::max(vert_sets.size(), frag_sets.size()); ++i) {
-        // Collect bindings of descriptor set [i]
-        std::vector<VkDescriptorSetLayoutBinding> bindings;
-        if (i < vert_sets.size()) {
-            bindings.insert(bindings.end(), vert_sets[i].begin(), vert_sets[i].end());
-        }
-        if (i < frag_sets.size()) {
-            bindings.insert(bindings.begin(), frag_sets[i].begin(), frag_sets[i].end());
-        }
+    // Gather sets bindings
+    for (const auto& kvp : vert_->sets_bindings) {
+        sets_bindings[kvp.first].insert(sets_bindings[kvp.first].end(), kvp.second.begin(), kvp.second.end());
+    }
+    for (const auto& kvp : frag_->sets_bindings) {
+        sets_bindings[kvp.first].insert(sets_bindings[kvp.first].end(), kvp.second.begin(), kvp.second.end());
+    }
 
+    // Create descriptor set layouts
+    for (const auto& kvp : sets_bindings) {
         VkDescriptorSetLayoutCreateInfo info{};
         info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-        info.bindingCount = static_cast<uint32_t>(bindings.size());
-        info.pBindings = bindings.data();
+        info.bindingCount = static_cast<uint32_t>(kvp.second.size());
+        info.pBindings = kvp.second.data();
 
-        // Create descriptor set [i]
         VkDescriptorSetLayout layout;
         assert(vkCreateDescriptorSetLayout(ctx.device, &info, nullptr, &layout) == VK_SUCCESS);
         desc_layouts_.push_back(layout);

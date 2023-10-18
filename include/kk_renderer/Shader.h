@@ -11,7 +11,7 @@ namespace kk {
             void destroy(RenderingContext& ctx);
 
             // Descriptor Set Index -> Layout Bindings
-            std::vector<std::vector<VkDescriptorSetLayoutBinding>> sets_bindings;
+            std::unordered_map<size_t, std::vector<VkDescriptorSetLayoutBinding>> sets_bindings;
             VkShaderModule module;
         };
     }

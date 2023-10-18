@@ -20,7 +20,6 @@ Shader Shader::create(RenderingContext& ctx, const std::string& path) {
     
     // TODO: Get from shader reflection
     if (path.find("triangle.vert.spv") != std::string::npos) {
-        shader.sets_bindings.resize(1); // How many sets does shader require ?
         shader.sets_bindings[0].resize(1); // How many bindings does descriptor set 0 have ?
         // What kind of resource does binding 0 require ?
         shader.sets_bindings[0][0].binding = 0;
@@ -32,7 +31,6 @@ Shader Shader::create(RenderingContext& ctx, const std::string& path) {
         // Do nothing
     }
     else if (path.find("texture.vert.spv") != std::string::npos) {
-        shader.sets_bindings.resize(1);
         shader.sets_bindings[0].resize(1);
         shader.sets_bindings[0][0].binding = 0;
         shader.sets_bindings[0][0].descriptorCount = 1;
@@ -40,7 +38,11 @@ Shader Shader::create(RenderingContext& ctx, const std::string& path) {
         shader.sets_bindings[0][0].stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
     }
     else if (path.find("texture.frag.spv") != std::string::npos) {
-        // TODO: texture binding
+        shader.sets_bindings[1].resize(1);
+        shader.sets_bindings[1][0].binding = 0;
+        shader.sets_bindings[1][0].descriptorCount = 1;
+        shader.sets_bindings[1][0].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+        shader.sets_bindings[1][0].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
     }
     else {
         std::cerr << "Shader::create(): Error: Failed to get reflection of " << path << std::endl;
