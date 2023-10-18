@@ -11,14 +11,15 @@
 namespace kk {
     namespace renderer {
         struct Renderable {
-            static Renderable create(
-                RenderingContext& ctx,
+            Renderable(
                 const std::shared_ptr<Geometry>& geometry,
                 const std::shared_ptr<Material>& material
             );
 
+            size_t id;
             std::shared_ptr<Geometry> geometry;
             std::shared_ptr<Material> material;
+            std::array<std::vector<VkDescriptorSet>, kMaxConcurrentFrames> desc_sets;
         };
     }
 }

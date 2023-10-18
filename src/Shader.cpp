@@ -6,7 +6,6 @@
 using namespace kk::renderer;
 
 static std::vector<char> readFile(const std::string& path);
-static void getReflection(const std::vector<char>& code, Shader& shader);
 
 Shader Shader::create(RenderingContext& ctx, const std::string& path) {
     const std::vector<char> code = readFile(path);
@@ -17,38 +16,37 @@ Shader Shader::create(RenderingContext& ctx, const std::string& path) {
     info.pCode = reinterpret_cast<const uint32_t*>(code.data());
 
     Shader shader;
-    // getReflection(code, shader);
+    assert(vkCreateShaderModule(ctx.device, &info, nullptr, &shader.module) == VK_SUCCESS);
+    
+    // TODO: Get from shader reflection
     if (path.find("triangle.vert.spv") != std::string::npos) {
-        shader.bindings[0].binding = 0;
-        shader.bindings[0].descriptorCount = 1;
-        shader.bindings[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-        shader.bindings[0].stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
-        shader.bindings[0].pImmutableSamplers = nullptr;
+        shader.sets_bindings.resize(1); // How many sets does shader require ?
+        shader.sets_bindings[0].resize(1); // How many bindings does descriptor set 0 have ?
+        // What kind of resource does binding 0 require ?
+        shader.sets_bindings[0][0].binding = 0;
+        shader.sets_bindings[0][0].descriptorCount = 1;
+        shader.sets_bindings[0][0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+        shader.sets_bindings[0][0].stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
     }
     else if (path.find("triangle.frag.spv") != std::string::npos) {
-
+        // Do nothing
     }
     else if (path.find("texture.vert.spv") != std::string::npos) {
-        shader.bindings[0].binding = 0;
-        shader.bindings[0].descriptorCount = 1;
-        shader.bindings[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-        shader.bindings[0].stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
-        shader.bindings[0].pImmutableSamplers = nullptr;
+        shader.sets_bindings.resize(1);
+        shader.sets_bindings[0].resize(1);
+        shader.sets_bindings[0][0].binding = 0;
+        shader.sets_bindings[0][0].descriptorCount = 1;
+        shader.sets_bindings[0][0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+        shader.sets_bindings[0][0].stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
     }
     else if (path.find("texture.frag.spv") != std::string::npos) {
-        shader.bindings[1].binding = 1;
-        shader.bindings[1].descriptorCount = 1;
-        shader.bindings[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-        shader.bindings[1].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-        shader.bindings[1].pImmutableSamplers = nullptr;
+        // TODO: texture binding
     }
     else {
         std::cerr << "Shader::create(): Error: Failed to get reflection of " << path << std::endl;
         assert(false);
     }
-
-    assert(vkCreateShaderModule(ctx.device, &info, nullptr, &shader.module) == VK_SUCCESS);
-
+    
     return shader;
 }
 
@@ -75,6 +73,3 @@ static std::vector<char> readFile(const std::string& path) {
     return buffer;
 }
 
-static void getReflection(const std::vector<char>& code, Shader& shader) {
-    // TODO: Get reflection
-}

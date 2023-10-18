@@ -2,174 +2,83 @@
 #include "kk_renderer/Vertex.h"
 #include <cassert>
 #include <iostream>
+#include <algorithm>
 
 using namespace kk::renderer;
 
 Material::Material() :
     is_compiled_(false),
     pipeline_layout_(VK_NULL_HANDLE),
-    pipeline_(VK_NULL_HANDLE),
-    desc_layout_(VK_NULL_HANDLE) {
+    pipeline_(VK_NULL_HANDLE) {
     setDefault();
 }
 
 void Material::destroy(RenderingContext& ctx) {
-    vkFreeDescriptorSets(ctx.device, ctx.desc_pool, static_cast<uint32_t>(desc_sets_.size()), desc_sets_.data());
     vkDestroyPipeline(ctx.device, pipeline_, nullptr);
     vkDestroyPipelineLayout(ctx.device, pipeline_layout_, nullptr);
-    vkDestroyDescriptorSetLayout(ctx.device, desc_layout_, nullptr);
-
-    // Release resources
-    for (auto& binding : bindings_) {
-        binding.resource.reset();
+    
+    for (const auto& desc_layout : desc_layouts_) {
+        vkDestroyDescriptorSetLayout(ctx.device, desc_layout, nullptr);
     }
-}
-
-void Material::setVertexShader(const std::shared_ptr<Shader>& vert) {
-    shaders_[VK_SHADER_STAGE_VERTEX_BIT] = vert;
-    is_compiled_ = false;
-}
-
-void Material::setFragmentShader(const std::shared_ptr<Shader>& frag) {
-    shaders_[VK_SHADER_STAGE_FRAGMENT_BIT] = frag;
-    is_compiled_ = false;
-}
-
-void Material::setBuffer(
-    uint32_t binding,
-    const std::shared_ptr<Buffer>& buffer,
-    VkDescriptorType type,
-    VkShaderStageFlags stage
-) {
-    VkDescriptorSetLayoutBinding layout_binding{};
-    layout_binding.binding = binding;
-    layout_binding.descriptorCount = 1;
-    layout_binding.descriptorType = type;
-    layout_binding.stageFlags = stage;
-
-    std::shared_ptr<VkDescriptorBufferInfo> buf_info(new VkDescriptorBufferInfo());
-    buf_info->buffer = buffer->buffer;
-    buf_info->offset = 0;
-    buf_info->range = buffer->size;
-
-    addBindingInfo(layout_binding, std::move(buf_info), buffer);
-
-    is_compiled_ = false;
-}
-
-void Material::setTexture(
-    uint32_t binding,
-    const std::shared_ptr<Texture>& texture,
-    VkDescriptorType type,
-    VkShaderStageFlags stage
-) {
-    VkDescriptorSetLayoutBinding layout_binding{};
-    layout_binding.binding = binding;
-    layout_binding.descriptorCount = 1;
-    layout_binding.descriptorType = type;
-    layout_binding.stageFlags = stage;
-
-    std::shared_ptr<VkDescriptorImageInfo> img_info(new VkDescriptorImageInfo());
-    // img_info->imageLayout = texture->layout;
-    img_info->imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL; // TODO: support other layout
-    img_info->imageView = texture->view;
-    img_info->sampler = texture->sampler;
-
-    addBindingInfo(layout_binding, std::move(img_info), texture);
-
-    is_compiled_ = false;
-}
-
-std::shared_ptr<Buffer> Material::getBuffer(uint32_t binding) {
-    // TODO: Validation
-    return std::static_pointer_cast<Buffer>(bindings_[binding].resource);
 }
 
 void Material::compile(RenderingContext& ctx, VkRenderPass render_pass) {
     // TODO: Destroy resources existing already
     
     buildDescLayout(ctx);
-    buildDescSets(ctx, desc_layout_);
-    buildPipelineLayout(ctx, desc_layout_);
+    buildPipelineLayout(ctx, desc_layouts_);
     buildPipeline(ctx, pipeline_layout_, render_pass);
 
     is_compiled_ = true;
 }
 
 void Material::buildDescLayout(RenderingContext& ctx) {
-    std::vector<VkDescriptorSetLayoutBinding> bindings(bindings_.size());
-    for (uint32_t i = 0; i < bindings_.size(); ++i) {
-        bindings[i] = bindings_[i].layout;
-    }
+    const auto& vert_sets = vert_->sets_bindings;
+    const auto& frag_sets = frag_->sets_bindings;
 
-    VkDescriptorSetLayoutCreateInfo info{};
-    info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-    info.bindingCount = static_cast<uint32_t>(bindings.size());
-    info.pBindings = bindings.data();
-
-    assert(vkCreateDescriptorSetLayout(ctx.device, &info, nullptr, &desc_layout_) == VK_SUCCESS);
-}
-
-void Material::buildDescSets(RenderingContext& ctx, VkDescriptorSetLayout layout) {
-    for (size_t i = 0; i < kMaxConcurrentFrames; ++i) {
-        VkDescriptorSetAllocateInfo alloc_info{};
-        alloc_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
-        alloc_info.descriptorPool = ctx.desc_pool;
-        alloc_info.descriptorSetCount = 1;
-        alloc_info.pSetLayouts = &layout;
-        assert(vkAllocateDescriptorSets(ctx.device, &alloc_info, &desc_sets_[i]) == VK_SUCCESS);
-
-        for (const auto& bind_info : bindings_) {
-            const uint32_t binding = bind_info.layout.binding;
-
-            VkWriteDescriptorSet desc_write{};
-            desc_write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-            desc_write.dstSet = desc_sets_[i];
-            desc_write.dstBinding = binding;
-            desc_write.descriptorType = bind_info.layout.descriptorType;
-            desc_write.descriptorCount = 1;
-
-            switch (bind_info.layout.descriptorType) {
-            case VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER:
-                desc_write.pBufferInfo = static_cast<VkDescriptorBufferInfo*>(bind_info.bind_info.get());
-                break;
-
-            case VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER: {
-                desc_write.pImageInfo = static_cast<VkDescriptorImageInfo*>(bind_info.bind_info.get());
-                break;
-            }
-
-            default:
-                std::cerr << "ResourceDescriptor::buildSets(): Error: Unsupported descriptor type: " << bind_info.layout.descriptorType << std::endl;
-                assert(false);
-                break;
-            }
-
-            vkUpdateDescriptorSets(ctx.device, 1, &desc_write, 0, nullptr);
+    for (size_t i = 0; i < std::max(vert_sets.size(), frag_sets.size()); ++i) {
+        // Collect bindings of descriptor set [i]
+        std::vector<VkDescriptorSetLayoutBinding> bindings;
+        if (i < vert_sets.size()) {
+            bindings.insert(bindings.end(), vert_sets[i].begin(), vert_sets[i].end());
         }
+        if (i < frag_sets.size()) {
+            bindings.insert(bindings.begin(), frag_sets[i].begin(), frag_sets[i].end());
+        }
+
+        VkDescriptorSetLayoutCreateInfo info{};
+        info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+        info.bindingCount = static_cast<uint32_t>(bindings.size());
+        info.pBindings = bindings.data();
+
+        // Create descriptor set [i]
+        VkDescriptorSetLayout layout;
+        assert(vkCreateDescriptorSetLayout(ctx.device, &info, nullptr, &layout) == VK_SUCCESS);
+        desc_layouts_.push_back(layout);
     }
 }
 
-void Material::buildPipelineLayout(RenderingContext& ctx, VkDescriptorSetLayout desc_layout) {
+void Material::buildPipelineLayout(RenderingContext& ctx, const std::vector<VkDescriptorSetLayout>& desc_layouts) {
     VkPipelineLayoutCreateInfo info{};
     info.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-    info.setLayoutCount = 1;
-    info.pSetLayouts = &desc_layout;
+    info.setLayoutCount = static_cast<uint32_t>(desc_layouts.size());
+    info.pSetLayouts = desc_layouts.data();
 
     assert(vkCreatePipelineLayout(ctx.device, &info, nullptr, &pipeline_layout_) == VK_SUCCESS);
 }
 
 void Material::buildPipeline(RenderingContext& ctx, VkPipelineLayout layout, VkRenderPass render_pass) {
-    std::vector<VkPipelineShaderStageCreateInfo> shader_stages;
-    shader_stages.reserve(shaders_.size());
-    for (const auto& kvp : shaders_) {
-        VkPipelineShaderStageCreateInfo info{};
-        info.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-        info.stage = kvp.first;
-        info.module = kvp.second->module;
-        info.pName = "main";
-        shader_stages.push_back(info);
-    }
+    std::array<VkPipelineShaderStageCreateInfo, 2> shader_stages{};
+    // Set vertex shader info
+    shader_stages[0].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+    shader_stages[0].stage = VK_SHADER_STAGE_VERTEX_BIT;
+    shader_stages[0].module = vert_->module;
+    shader_stages[0].pName = "main";
+    // Set fragment shader info
+    shader_stages[1].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+    shader_stages[1].stage = VK_SHADER_STAGE_FRAGMENT_BIT;
+    shader_stages[1].module = frag_->module;
+    shader_stages[1].pName = "main";
 
     const auto binding_desc = Vertex::getBindingDescription();
     const auto attr_desc = Vertex::getAttributeDescriptions();
@@ -249,20 +158,4 @@ void Material::setDefault() {
         VK_DYNAMIC_STATE_VIEWPORT,
         VK_DYNAMIC_STATE_SCISSOR
     };
-}
-
-void Material::addBindingInfo(
-    const VkDescriptorSetLayoutBinding& layout,
-    const std::shared_ptr<void>& bind_info,
-    const std::shared_ptr<void>& resource
-) {
-    const uint32_t binding = layout.binding;
-    if (binding >= bindings_.size()) {
-        // TODO: Avoid frequent allocation
-        bindings_.resize(static_cast<size_t>(layout.binding) + 1);
-    }
-
-    bindings_[binding].layout = layout;
-    bindings_[binding].bind_info = bind_info;
-    bindings_[binding].resource = resource;
 }

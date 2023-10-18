@@ -75,6 +75,7 @@ TEST(RenderingLoopTest, RenderingLoop) {
         }
     }
 
+    vkDeviceWaitIdle(ctx.device);
     renderer.destroy(ctx);
     swapchain.destroy(ctx);
     ctx.destroy();

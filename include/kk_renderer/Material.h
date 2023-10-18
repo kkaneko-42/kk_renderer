@@ -14,54 +14,41 @@ namespace kk {
 
             void destroy(RenderingContext& ctx);
 
-            void setVertexShader(const std::shared_ptr<Shader>& vert);
-            void setFragmentShader(const std::shared_ptr<Shader>& frag);
-            void setBuffer(
-                uint32_t binding,
-                const std::shared_ptr<Buffer>& buffer,
-                VkDescriptorType type,
-                VkShaderStageFlags stage
-            );
-            void setTexture(
-                uint32_t binding,
-                const std::shared_ptr<Texture>& texture,
-                VkDescriptorType type,
-                VkShaderStageFlags stage
-            );
-            std::shared_ptr<Buffer> getBuffer(uint32_t binding);
+            inline void setVertexShader(const std::shared_ptr<Shader>& vert) {
+                vert_ = vert;
+            }
+
+            inline void setFragmentShader(const std::shared_ptr<Shader>& frag) {
+                frag_ = frag;
+            }
+
+            inline void setTexture(const std::shared_ptr<Texture>& texture) {
+                texture_ = texture;
+                // TODO: set dirty flag true
+            }
+
+            inline std::shared_ptr<Texture> getTexture() const {
+                return texture_;
+            }
 
             void compile(RenderingContext& ctx, VkRenderPass render_pass);
 
             inline bool isCompiled() const { return is_compiled_; }
             inline VkPipeline getPipeline() const { return pipeline_; }
             inline VkPipelineLayout getPipelineLayout() const { return pipeline_layout_; }
-            inline VkDescriptorSetLayout getDescriptorSetLayout() const { return desc_layout_; }
-            inline const std::array<VkDescriptorSet, kMaxConcurrentFrames>& getDescriptorSets() const {
-                return desc_sets_;
-            }
+            inline const std::vector<VkDescriptorSetLayout>& getDescriptorSetLayouts() const { return desc_layouts_; }
 
         private:
-            struct ResourceBindingInfo {
-                VkDescriptorSetLayoutBinding layout;
-                std::shared_ptr<void> bind_info;
-                std::shared_ptr<void> resource;
-            };
-
             void setDefault();
             void buildDescLayout(RenderingContext& ctx);
-            void buildDescSets(RenderingContext& ctx, VkDescriptorSetLayout layout);
-            void buildPipelineLayout(RenderingContext& ctx, VkDescriptorSetLayout desc_layout);
+            void buildPipelineLayout(RenderingContext& ctx, const std::vector<VkDescriptorSetLayout>& desc_layouts);
             void buildPipeline(RenderingContext& ctx, VkPipelineLayout layout, VkRenderPass render_pass);
-
-            void addBindingInfo(
-                const VkDescriptorSetLayoutBinding& layout,
-                const std::shared_ptr<void>& bind_info,
-                const std::shared_ptr<void>& resource
-            );
 
             bool is_compiled_;
 
-            std::unordered_map<VkShaderStageFlagBits, std::shared_ptr<Shader>> shaders_;
+            std::shared_ptr<Texture> texture_;
+
+            std::shared_ptr<Shader> vert_, frag_;
             VkPipelineInputAssemblyStateCreateInfo input_asm_;
             VkPipelineViewportStateCreateInfo viewport_;
             VkPipelineRasterizationStateCreateInfo rasterizer_;
@@ -70,13 +57,10 @@ namespace kk {
             std::vector<VkPipelineColorBlendAttachmentState> blend_attachments_;
             std::vector<VkDynamicState> dynamic_states_;
 
+            std::vector<VkDescriptorSetLayout> desc_layouts_;
+
             VkPipelineLayout pipeline_layout_;
             VkPipeline pipeline_;
-
-            // NOTE: LayoutBinding |-> (bind info, bind resource)
-            std::vector<ResourceBindingInfo> bindings_;
-            VkDescriptorSetLayout desc_layout_;
-            std::array<VkDescriptorSet, kMaxConcurrentFrames> desc_sets_;
         };
     }
 }

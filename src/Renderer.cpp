@@ -29,7 +29,11 @@ Renderer Renderer::create(RenderingContext& ctx, Swapchain& swapchain) {
 }
 
 void Renderer::destroy(RenderingContext& ctx) {
-    vkDeviceWaitIdle(ctx.device);
+    for (auto& uniform : uniforms_) {
+        for (size_t i = 0; i < kMaxConcurrentFrames; ++i) {
+            uniform.second[i].destroy(ctx);
+        }
+    }
 
     for (auto& framebuffer : framebuffers_) {
         vkDestroyFramebuffer(ctx.device, framebuffer, nullptr);
@@ -143,14 +147,64 @@ void Renderer::endFrame(RenderingContext& ctx, Swapchain& swapchain) {
     current_frame_ = (current_frame_ + 1) % kMaxConcurrentFrames;
 }
 
-void Renderer::render(RenderingContext& ctx, Renderable& renderable, const Transform& transform, const Camera& camera) {
-    VkCommandBuffer cmd_buf = cmd_bufs_[current_frame_];
-
-    Material& material = *renderable.material;
-    // Set pipeline state
-    if (!material.isCompiled()) {
-        material.compile(ctx, render_pass_);
+void Renderer::prepareRendering(RenderingContext& ctx, Renderable& renderable) {
+    // Setup uniform buffer
+    if (uniforms_.find(renderable.id) == uniforms_.end()) {
+        for (size_t i = 0; i < kMaxConcurrentFrames; ++i) {
+            Buffer& uniform = uniforms_[renderable.id][i];
+            uniform = Buffer::create(
+                ctx,
+                sizeof(Mat4),
+                VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+                VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
+            );
+            vkMapMemory(ctx.device, uniform.memory, 0, uniform.size, 0, &uniform.mapped);
+        }
     }
+
+    // Set pipeline state
+    if (!renderable.material->isCompiled()) {
+        renderable.material->compile(ctx, render_pass_);
+    }
+
+    // Setup descriptor sets
+    // NOTE: Assert material is compiled (valid descriptor set layouts required)
+    const auto& layouts = renderable.material->getDescriptorSetLayouts();
+    if (renderable.desc_sets[0].size() == 0 && layouts.size() != 0) {
+        for (size_t i = 0; i < kMaxConcurrentFrames; ++i) {
+            VkDescriptorSetAllocateInfo alloc_info{};
+            alloc_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+            alloc_info.descriptorPool = ctx.desc_pool;
+            alloc_info.descriptorSetCount = static_cast<uint32_t>(layouts.size());
+            alloc_info.pSetLayouts = layouts.data();
+
+            auto& target_sets = renderable.desc_sets[i];
+            target_sets.resize(layouts.size());
+            assert(vkAllocateDescriptorSets(ctx.device, &alloc_info, target_sets.data()) == VK_SUCCESS);
+
+            VkWriteDescriptorSet write_uniform{};
+            write_uniform.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+            write_uniform.dstSet = target_sets[0];
+            write_uniform.dstBinding = 0;
+            write_uniform.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+            write_uniform.descriptorCount = 1;
+
+            VkDescriptorBufferInfo buf_info{};
+            buf_info.buffer = uniforms_[renderable.id][i].buffer;
+            buf_info.offset = 0;
+            buf_info.range = uniforms_[renderable.id][i].size;
+            write_uniform.pBufferInfo = &buf_info;
+
+            vkUpdateDescriptorSets(ctx.device, 1, &write_uniform, 0, nullptr);
+        }
+    }
+}
+
+void Renderer::render(RenderingContext& ctx, Renderable& renderable, const Transform& transform, const Camera& camera) {
+    prepareRendering(ctx, renderable);
+
+    VkCommandBuffer cmd_buf = cmd_bufs_[current_frame_];
+    Material& material = *renderable.material;
     vkCmdBindPipeline(cmd_buf, VK_PIPELINE_BIND_POINT_GRAPHICS, material.getPipeline());
 
     // Build MVP matrix
@@ -168,17 +222,16 @@ void Renderer::render(RenderingContext& ctx, Renderable& renderable, const Trans
     const Mat4 mvp = proj * view * model;
 
     // Copy MVP to uniform buffer
-    std::memcpy(material.getBuffer(0)->mapped, &mvp, sizeof(Mat4));
+    std::memcpy(uniforms_[renderable.id][current_frame_].mapped, &mvp, sizeof(Mat4));
 
     // Set descriptor
-    VkDescriptorSet desc_set = material.getDescriptorSets()[current_frame_];
     vkCmdBindDescriptorSets(
         cmd_bufs_[current_frame_],
         VK_PIPELINE_BIND_POINT_GRAPHICS,
         material.getPipelineLayout(),
         0,
-        1,
-        &desc_set,
+        static_cast<uint32_t>(renderable.desc_sets[current_frame_].size()),
+        renderable.desc_sets[current_frame_].data(),
         0,
         nullptr
     );
@@ -193,7 +246,7 @@ void Renderer::render(RenderingContext& ctx, Renderable& renderable, const Trans
     vkCmdDrawIndexed(cmd_buf, static_cast<uint32_t>(geometry.indices.size()), 1, 0, 0, 0);
 }
 
-void Renderer::compileMaterial(RenderingContext& ctx, std::shared_ptr<Material> material) {
+void Renderer::compileMaterial(RenderingContext& ctx, const std::shared_ptr<Material>& material) {
     material->compile(ctx, render_pass_);
 }
 
@@ -260,4 +313,8 @@ static std::vector<VkFramebuffer> createFramebuffers(RenderingContext& ctx, Swap
     }
 
     return framebuffers;
+}
+
+static std::array<ResourceDescriptor, kMaxConcurrentFrames> createUniformBuffers(RenderingContext& ctx) {
+
 }

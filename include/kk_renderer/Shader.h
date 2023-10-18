@@ -10,7 +10,8 @@ namespace kk {
             static Shader create(RenderingContext& ctx, const std::string& path);
             void destroy(RenderingContext& ctx);
 
-            std::unordered_map<uint32_t, VkDescriptorSetLayoutBinding> bindings;
+            // Descriptor Set Index -> Layout Bindings
+            std::vector<std::vector<VkDescriptorSetLayoutBinding>> sets_bindings;
             VkShaderModule module;
         };
     }
