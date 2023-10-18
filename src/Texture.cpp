@@ -1,12 +1,40 @@
 #include "kk_renderer/Texture.h"
 #include "kk_renderer/Buffer.h"
 #include <cassert>
+#define STB_IMAGE_IMPLEMENTATION
+#include <stb/stb_image.h>
+#include <iostream>
 
 using namespace kk::renderer;
 
 static void createImage(RenderingContext& ctx, const void* texels, size_t texel_byte, Texture& texture);
 static void createImageView(RenderingContext& ctx, Texture& texture);
 static void createSampler(RenderingContext& ctx, Texture& texture);
+
+Texture Texture::create(RenderingContext& ctx, const std::string& path) {
+    int x, y, channels;
+    void* texels = stbi_load(path.c_str(), &x, &y, &channels, STBI_rgb_alpha);
+    if (texels == nullptr) {
+        std::cerr << "Failed to load " << path << std::endl;
+        assert(false);
+    }
+
+    Texture texture = Texture::create(
+        ctx,
+        texels,
+        4,
+        static_cast<uint32_t>(x),
+        static_cast<uint32_t>(y),
+        VK_FORMAT_R8G8B8A8_SRGB,
+        VK_IMAGE_TILING_OPTIMAL,
+        VK_IMAGE_USAGE_SAMPLED_BIT,
+        VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+        VK_IMAGE_ASPECT_COLOR_BIT
+    );
+    stbi_image_free(texels);
+
+    return texture;
+}
 
 Texture Texture::create(
     RenderingContext& ctx,

@@ -1,11 +1,14 @@
 #pragma once
 
 #include <vulkan/vulkan.h>
+#include <string>
 #include "RenderingContext.h"
 
 namespace kk {
     namespace renderer {
         struct Texture {
+            static Texture create(RenderingContext& ctx, const std::string& path);
+
             static Texture create(
                 RenderingContext& ctx,
                 const void* texels,
