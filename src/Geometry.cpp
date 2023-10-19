@@ -1,6 +1,36 @@
 #include "kk_renderer/Geometry.h"
+#include <fstream>
+#include <sstream>
+#include <iostream>
+#include <unordered_map>
+#define TINYOBJLOADER_IMPLEMENTATION
+#include <tinyobjloader/tiny_obj_loader.h>
+#include <functional>
 
+using namespace kk;
 using namespace kk::renderer;
+
+namespace std {
+    template<> struct hash<Vertex> {
+        size_t operator()(Vertex const& vertex) const {
+            return ((hash<Vec3>()(vertex.position) ^ (hash<Vec4>()(vertex.color) << 1)) >> 1) ^ (hash<Vec2>()(vertex.uv) << 1);
+        }
+    };
+}
+
+static void loadModel(const std::string& path, std::vector<Vertex>& vertices, std::vector<uint32_t>& indices);
+
+Geometry Geometry::create(RenderingContext& ctx, const std::string& path) {
+    std::vector<Vertex> vertices;
+    std::vector<uint32_t> indices;
+    loadModel(path, vertices, indices);
+
+    return Geometry::create(
+        ctx,
+        vertices,
+        indices
+    );
+}
 
 Geometry Geometry::create(
     RenderingContext& ctx,
@@ -37,4 +67,43 @@ Geometry Geometry::create(
 void Geometry::destroy(RenderingContext& ctx) {
     vertex_buffer.destroy(ctx);
     index_buffer.destroy(ctx);
+}
+
+static void loadModel(const std::string& path, std::vector<Vertex>& vertices, std::vector<uint32_t>& indices) {
+    tinyobj::attrib_t attr;
+    std::vector<tinyobj::shape_t> shapes;
+    std::vector<tinyobj::material_t> materials;
+    std::string err;
+
+    if (!tinyobj::LoadObj(&attr, &shapes, &materials, &err, path.c_str())) {
+        throw std::runtime_error(err);
+    }
+
+    std::unordered_map<Vertex, uint32_t> unique_vertices{};
+
+    for (const auto& shape : shapes) {
+        for (const auto& index : shape.mesh.indices) {
+            Vertex vertex{};
+
+            vertex.position = {
+                attr.vertices[3 * index.vertex_index + 0],
+                attr.vertices[3 * index.vertex_index + 1],
+                attr.vertices[3 * index.vertex_index + 2]
+            };
+
+            vertex.uv = {
+                attr.texcoords[2 * index.texcoord_index + 0],
+                1.0f - attr.texcoords[2 * index.texcoord_index + 1]
+            };
+
+            vertex.color = { 1.0f, 1.0f, 1.0f, 1.0f };
+
+            if (unique_vertices.count(vertex) == 0) {
+                unique_vertices[vertex] = static_cast<uint32_t>(vertices.size());
+                vertices.push_back(vertex);
+            }
+
+            indices.push_back(unique_vertices[vertex]);
+        }
+    }
 }

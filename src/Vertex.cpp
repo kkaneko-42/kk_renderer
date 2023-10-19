@@ -31,3 +31,11 @@ std::array<VkVertexInputAttributeDescription, 3> Vertex::getAttributeDescription
 
     return attr_descs;
 }
+
+bool kk::renderer::operator==(const Vertex& lhs, const Vertex& rhs) {
+    return (
+        lhs.position == rhs.position &&
+        lhs.uv == rhs.uv &&
+        lhs.color == rhs.color
+    );
+}

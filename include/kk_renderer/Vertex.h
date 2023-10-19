@@ -16,5 +16,7 @@ namespace kk {
             static VkVertexInputBindingDescription getBindingDescription();
             static std::array<VkVertexInputAttributeDescription, 3> getAttributeDescriptions();
         };
+
+        bool operator==(const Vertex& lhs, const Vertex& rhs);
     }
 }

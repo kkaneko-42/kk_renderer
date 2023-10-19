@@ -4,6 +4,7 @@
 #include "Vertex.h"
 #include "Buffer.h"
 #include <vector>
+#include <string>
 
 namespace kk {
     namespace renderer {
@@ -12,6 +13,8 @@ namespace kk {
             Buffer vertex_buffer;
             std::vector<uint32_t> indices;
             Buffer index_buffer;
+
+            static Geometry create(RenderingContext& ctx, const std::string& path);
 
             static Geometry create(
                 RenderingContext& ctx,
