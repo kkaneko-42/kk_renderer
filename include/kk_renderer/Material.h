@@ -53,6 +53,7 @@ namespace kk {
             VkPipelineViewportStateCreateInfo viewport_;
             VkPipelineRasterizationStateCreateInfo rasterizer_;
             VkPipelineMultisampleStateCreateInfo multisampling_;
+            VkPipelineDepthStencilStateCreateInfo depth_stencil_;
             VkPipelineColorBlendStateCreateInfo color_blending_;
             std::vector<VkPipelineColorBlendAttachmentState> blend_attachments_;
             std::vector<VkDynamicState> dynamic_states_;

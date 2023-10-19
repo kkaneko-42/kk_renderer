@@ -9,6 +9,7 @@
 #include "Renderable.h"
 #include "Camera.h"
 #include "ResourceDescriptor.h"
+#include "Image.h"
 
 namespace kk {
     namespace renderer {
@@ -27,6 +28,7 @@ namespace kk {
             void prepareRendering(RenderingContext& ctx, Renderable& renderable);
 
             VkRenderPass render_pass_;
+            Image depth_;
 
             std::vector<VkFramebuffer> framebuffers_;
             std::array<VkCommandBuffer, kMaxConcurrentFrames> cmd_bufs_;

@@ -103,6 +103,7 @@ void Material::buildPipeline(RenderingContext& ctx, VkPipelineLayout layout, VkR
     info.pViewportState = &viewport_;
     info.pRasterizationState = &rasterizer_;
     info.pMultisampleState = &multisampling_;
+    info.pDepthStencilState = &depth_stencil_;
     info.pColorBlendState = &color_blending_;
     info.pDynamicState = &dynamic_state;
     info.layout = layout;
@@ -137,6 +138,12 @@ void Material::setDefault() {
     multisampling_.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
     multisampling_.sampleShadingEnable = VK_FALSE;
     multisampling_.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
+
+    depth_stencil_ = {};
+    depth_stencil_.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
+    depth_stencil_.depthTestEnable = VK_TRUE;
+    depth_stencil_.depthWriteEnable = VK_TRUE;
+    depth_stencil_.depthCompareOp = VK_COMPARE_OP_LESS;
 
     blend_attachments_.resize(1);
     blend_attachments_[0].colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;

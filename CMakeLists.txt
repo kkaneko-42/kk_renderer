@@ -17,6 +17,7 @@ set(SRCS
 	src/Texture.cpp
 	src/Shader.cpp
 	src/Material.cpp
+	src/Image.cpp
 )
 
 add_library(${PROJECT_NAME} STATIC ${SRCS})

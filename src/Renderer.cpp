@@ -7,7 +7,8 @@
 using namespace kk::renderer;
 
 static VkRenderPass createRenderPass(RenderingContext& ctx, VkFormat swapchain_format);
-static std::vector<VkFramebuffer> createFramebuffers(RenderingContext& ctx, Swapchain& swapchain, VkRenderPass render_pass);
+static std::vector<VkFramebuffer> createFramebuffers(RenderingContext& ctx, const Swapchain& swapchain, const Image& depth, VkRenderPass render_pass);
+static Image createDepthImage(RenderingContext& ctx, VkExtent2D extent);
 
 Renderer Renderer::create(RenderingContext& ctx, Swapchain& swapchain) {
     Renderer renderer{};
@@ -23,7 +24,8 @@ Renderer Renderer::create(RenderingContext& ctx, Swapchain& swapchain) {
 
     // Create graphics pipelines and related objects
     renderer.render_pass_ = createRenderPass(ctx, swapchain.surface_format.format);
-    renderer.framebuffers_ = createFramebuffers(ctx, swapchain, renderer.render_pass_);
+    renderer.depth_ = createDepthImage(ctx, swapchain.extent);
+    renderer.framebuffers_ = createFramebuffers(ctx, swapchain, renderer.depth_, renderer.render_pass_);
 
     return renderer;
 }
@@ -34,6 +36,8 @@ void Renderer::destroy(RenderingContext& ctx) {
             uniform.second[i].destroy(ctx);
         }
     }
+
+    depth_.destroy(ctx);
 
     for (auto& framebuffer : framebuffers_) {
         vkDestroyFramebuffer(ctx.device, framebuffer, nullptr);
@@ -87,9 +91,13 @@ bool Renderer::beginFrame(RenderingContext& ctx, Swapchain& swapchain) {
     render_pass_info.renderPass = render_pass_;
     render_pass_info.framebuffer = framebuffers_[img_idx_];
     render_pass_info.renderArea.extent = swapchain.extent;
-    VkClearValue clear_color = { {0.0f, 0.0f, 0.0f, 1.0f} };
-    render_pass_info.clearValueCount = 1;
-    render_pass_info.pClearValues = &clear_color;
+
+    std::array<VkClearValue, 2> clear_values{};
+    clear_values[0].color = { {0.0f, 0.0f, 0.0f, 1.0f} };
+    clear_values[1].depthStencil = { 1.0f, 0 };
+    render_pass_info.clearValueCount = static_cast<uint32_t>(clear_values.size());
+    render_pass_info.pClearValues = clear_values.data();
+
     vkCmdBeginRenderPass(current_buf, &render_pass_info, VK_SUBPASS_CONTENTS_INLINE);
 
     // Set viewport
@@ -266,24 +274,39 @@ void Renderer::compileMaterial(RenderingContext& ctx, const std::shared_ptr<Mate
 }
 
 static VkRenderPass createRenderPass(RenderingContext& ctx, VkFormat swapchain_format /* TODO: remove swapchain_format */) {
-    VkAttachmentDescription color_attachment{};
-    color_attachment.format = swapchain_format;
-    color_attachment.samples = VK_SAMPLE_COUNT_1_BIT;
-    color_attachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-    color_attachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-    color_attachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-    color_attachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-    color_attachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-    color_attachment.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+    VkAttachmentDescription color{};
+    color.format = swapchain_format;
+    color.samples = VK_SAMPLE_COUNT_1_BIT;
+    color.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+    color.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+    color.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+    color.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+    color.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+    color.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
 
-    VkAttachmentReference color_attachment_ref{};
-    color_attachment_ref.attachment = 0;
-    color_attachment_ref.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+    VkAttachmentDescription depth{};
+    depth.format = VK_FORMAT_D32_SFLOAT; // TODO: Query format support
+    depth.samples = VK_SAMPLE_COUNT_1_BIT;
+    depth.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+    depth.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+    depth.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+    depth.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+    depth.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+    depth.finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+
+    VkAttachmentReference color_ref{};
+    color_ref.attachment = 0;
+    color_ref.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+
+    VkAttachmentReference depth_ref{};
+    depth_ref.attachment = 1;
+    depth_ref.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
 
     VkSubpassDescription subpass{};
     subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
     subpass.colorAttachmentCount = 1;
-    subpass.pColorAttachments = &color_attachment_ref;
+    subpass.pColorAttachments = &color_ref;
+    subpass.pDepthStencilAttachment = &depth_ref;
 
     VkSubpassDependency deps{};
     deps.srcSubpass = VK_SUBPASS_EXTERNAL;
@@ -293,10 +316,11 @@ static VkRenderPass createRenderPass(RenderingContext& ctx, VkFormat swapchain_f
     deps.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
     deps.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
 
+    std::array<VkAttachmentDescription, 2> attachments = { color, depth };
     VkRenderPassCreateInfo renderPassInfo{};
     renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
-    renderPassInfo.attachmentCount = 1;
-    renderPassInfo.pAttachments = &color_attachment;
+    renderPassInfo.attachmentCount = static_cast<uint32_t>(attachments.size());
+    renderPassInfo.pAttachments = attachments.data();
     renderPassInfo.subpassCount = 1;
     renderPassInfo.pSubpasses = &subpass;
     renderPassInfo.dependencyCount = 1;
@@ -308,18 +332,19 @@ static VkRenderPass createRenderPass(RenderingContext& ctx, VkFormat swapchain_f
     return render_pass;
 }
 
-static std::vector<VkFramebuffer> createFramebuffers(RenderingContext& ctx, Swapchain& swapchain, VkRenderPass render_pass) {
+static std::vector<VkFramebuffer> createFramebuffers(RenderingContext& ctx, const Swapchain& swapchain, const Image& depth, VkRenderPass render_pass) {
     std::vector<VkFramebuffer> framebuffers(swapchain.images.size());
     for (size_t i = 0; i < swapchain.images.size(); i++) {
-        VkImageView attachments[] = {
-            swapchain.views[i]
+        std::array<VkImageView, 2> attachments = {
+            swapchain.views[i],
+            depth.view
         };
 
         VkFramebufferCreateInfo framebufferInfo{};
         framebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
         framebufferInfo.renderPass = render_pass;
-        framebufferInfo.attachmentCount = 1;
-        framebufferInfo.pAttachments = attachments;
+        framebufferInfo.attachmentCount = static_cast<uint32_t>(attachments.size());
+        framebufferInfo.pAttachments = attachments.data();
         framebufferInfo.width = swapchain.extent.width;
         framebufferInfo.height = swapchain.extent.height;
         framebufferInfo.layers = 1;
@@ -328,4 +353,22 @@ static std::vector<VkFramebuffer> createFramebuffers(RenderingContext& ctx, Swap
     }
 
     return framebuffers;
+}
+
+static Image createDepthImage(RenderingContext& ctx, VkExtent2D extent) {
+    // TODO: Query format support
+    VkFormat format = VK_FORMAT_D32_SFLOAT;
+
+    Image depth = Image::create(
+        ctx,
+        extent.width,
+        extent.height,
+        format,
+        VK_IMAGE_TILING_OPTIMAL,
+        VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
+        VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+        VK_IMAGE_ASPECT_DEPTH_BIT
+    );
+
+    return depth;
 }

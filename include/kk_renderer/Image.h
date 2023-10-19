@@ -1,19 +1,13 @@
 #pragma once
 
 #include <vulkan/vulkan.h>
-#include <string>
 #include "RenderingContext.h"
 
 namespace kk {
     namespace renderer {
-        // TODO: Use kk::renderer::Image
-        struct Texture {
-            static Texture create(RenderingContext& ctx, const std::string& path);
-
-            static Texture create(
+        struct Image {
+            static Image create(
                 RenderingContext& ctx,
-                const void* texels,
-                size_t texel_byte,
                 uint32_t width,
                 uint32_t height,
                 VkFormat format,
@@ -27,7 +21,6 @@ namespace kk {
             VkImage image;
             VkDeviceMemory memory;
             VkImageView view;
-            VkSampler sampler;
 
             uint32_t width;
             uint32_t height;

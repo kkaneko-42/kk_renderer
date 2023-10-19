@@ -73,9 +73,9 @@ static void loadModel(const std::string& path, std::vector<Vertex>& vertices, st
     tinyobj::attrib_t attr;
     std::vector<tinyobj::shape_t> shapes;
     std::vector<tinyobj::material_t> materials;
-    std::string err;
+    std::string warn, err;
 
-    if (!tinyobj::LoadObj(&attr, &shapes, &materials, &err, path.c_str())) {
+    if (!tinyobj::LoadObj(&attr, &shapes, &materials, &warn, &err, path.c_str())) {
         throw std::runtime_error(err);
     }
 
