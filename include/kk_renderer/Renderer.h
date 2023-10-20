@@ -24,6 +24,16 @@ namespace kk {
 
             void compileMaterial(RenderingContext& ctx, const std::shared_ptr<Material>& material);
 
+            // FIXME: For editor initialization, render pass should be public.
+            inline VkRenderPass getRenderPass() const {
+                return render_pass_;
+            }
+
+            // FIXME: For editor rendering, cmd buf should be public.
+            inline VkCommandBuffer getCmdBuf() const {
+                return cmd_bufs_[current_frame_];
+            }
+
         private:
             void prepareRendering(RenderingContext& ctx, Renderable& renderable);
 

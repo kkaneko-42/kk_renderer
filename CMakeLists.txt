@@ -19,6 +19,13 @@ set(SRCS
 	src/Material.cpp
 	src/Image.cpp
 	src/Editor.cpp
+
+	external/imgui/src/imgui.cpp
+	external/imgui/src/imgui_impl_glfw.cpp
+	external/imgui/src/imgui_impl_vulkan.cpp
+	external/imgui/src/imgui_widgets.cpp
+	external/imgui/src/imgui_tables.cpp
+	external/imgui/src/imgui_draw.cpp
 )
 
 add_library(${PROJECT_NAME} STATIC ${SRCS})

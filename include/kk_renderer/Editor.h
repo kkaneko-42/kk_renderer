@@ -1,6 +1,8 @@
 #pragma once
 
 #include "RenderingContext.h"
+#include "Renderer.h"
+#include "Swapchain.h"
 #include <memory>
 
 namespace kk {
@@ -10,10 +12,11 @@ namespace kk {
         public:
             Editor();
 
-            void init(RenderingContext& ctx);
+            void init(RenderingContext& ctx, Window& window, const Swapchain& swapchain, const Renderer& renderer);
+            void render(VkCommandBuffer cmd_buf);
 
         private:
-            std::unique_ptr<EditorImpl> impl_;
+            EditorImpl* impl_;
         };
     }
 }

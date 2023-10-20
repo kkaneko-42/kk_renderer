@@ -1,39 +1,60 @@
 #include "kk_renderer/Editor.h"
-#include <imgui/imgui.h>
-#include <imgui/backends/imgui_impl_glfw.h>
-#include <imgui/backends/imgui_impl_vulkan.h>
+#include <imgui.h>
+#include <imgui_impl_glfw.h>
+#include <imgui_impl_vulkan.h>
 
 using namespace kk::renderer;
 
 struct kk::renderer::EditorImpl {
-    void init(RenderingContext& r_ctx, ) {
-        ctx = ImGui::CreateContext();
-        ImGui::SetCurrentContext(ctx);
-        ImGui_ImplGlfw_InitForVulkan(/* window handle */nullptr, true);
+    void init(RenderingContext& ctx, Window& window, const Swapchain& swapchain, const Renderer& renderer) {
+        imgui_ctx = ImGui::CreateContext();
+        ImGui::SetCurrentContext(imgui_ctx);
+        ImGui_ImplGlfw_InitForVulkan(static_cast<GLFWwindow*>(window.acquireHandle()), true);
         ImGui::StyleColorsDark();
 
         ImGui_ImplVulkan_InitInfo info{};
-        info.Instance = r_ctx.instance;
-        info.PhysicalDevice = r_ctx.gpu;
-        info.Device = r_ctx.device;
-        info.QueueFamily = r_ctx.graphics_family;
-        info.Queue = r_ctx.graphics_queue;
+        info.Instance = ctx.instance;
+        info.PhysicalDevice = ctx.gpu;
+        info.Device = ctx.device;
+        info.QueueFamily = ctx.graphics_family;
+        info.Queue = ctx.graphics_queue;
         info.PipelineCache = VK_NULL_HANDLE;
-        info.DescriptorPool = r_ctx.desc_pool;
+        info.DescriptorPool = ctx.desc_pool;
         info.Allocator = VK_NULL_HANDLE;
         info.MinImageCount = 2;
-        info.ImageCount = ;
+        info.ImageCount = static_cast<uint32_t>(swapchain.images.size()); // TODO: get from swapchain
         info.CheckVkResultFn = VK_NULL_HANDLE;
-        VmGui_ImplVulkan_Init(&info);
+        ImGui_ImplVulkan_Init(&info, renderer.getRenderPass());
     }
 
-    ImGuiContext* ctx;
+    void uploadFonts(RenderingContext& ctx) {
+        ctx.submitCmdsImmediate([](VkCommandBuffer cmd) {
+            ImGui_ImplVulkan_CreateFontsTexture(cmd);
+        });
+        ImGui_ImplVulkan_DestroyFontUploadObjects();
+    }
+
+    ImGuiContext* imgui_ctx;
 };
 
 Editor::Editor() {
-    impl_ = std::make_unique<EditorImpl>();
+    impl_ = new EditorImpl();
 }
 
-void Editor::init(RenderingContext& ctx) {
-    impl_->init(ctx);
+void Editor::init(RenderingContext& ctx, Window& window, const Swapchain& swapchain, const Renderer& renderer) {
+    impl_->init(ctx, window, swapchain, renderer);
+    impl_->uploadFonts(ctx);
+}
+
+void Editor::render(VkCommandBuffer cmd_buf) {
+    ImGui_ImplVulkan_NewFrame();
+    ImGui_ImplGlfw_NewFrame();
+    ImGui::NewFrame();
+    ImGui::Begin("SAMPLE WINDOW");
+    ImGui::Text("Hogehoge Fugafuga");
+    ImGui::End();
+
+    ImGui::Render();
+    ImDrawData* draw_data = ImGui::GetDrawData();
+    ImGui_ImplVulkan_RenderDrawData(draw_data, cmd_buf);
 }

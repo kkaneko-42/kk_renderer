@@ -8,6 +8,7 @@ set(SRCS
 	draw_triangle_test.cpp
 	draw_texture_test.cpp
 	draw_model_test.cpp
+	editor_test.cpp
     runner.cpp
 )
 set(SHADERS_DIR ${kk_renderer_SOURCE_DIR}/resources/shaders)
