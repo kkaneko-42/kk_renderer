@@ -74,3 +74,8 @@ void Editor::render(VkCommandBuffer cmd_buf, Transform& transform) {
     ImDrawData* draw_data = ImGui::GetDrawData();
     ImGui_ImplVulkan_RenderDrawData(draw_data, cmd_buf);
 }
+
+void Editor::terminate() {
+    ImGui_ImplVulkan_Shutdown();
+    ImGui_ImplGlfw_Shutdown();
+}

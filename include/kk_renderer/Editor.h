@@ -15,6 +15,7 @@ namespace kk {
             void init(RenderingContext& ctx, Window& window, const Swapchain& swapchain, const Renderer& renderer);
             void render(VkCommandBuffer cmd_buf);
             void render(VkCommandBuffer cmd_buf, Transform& transform);
+            void terminate();
 
         private:
             EditorImpl* impl_;

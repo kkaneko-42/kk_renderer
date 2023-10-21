@@ -26,6 +26,7 @@ TEST(EditorTest, RenderingLoop) {
     }
 
     vkDeviceWaitIdle(ctx.device);
+    editor.terminate();
     renderer.destroy(ctx);
     swapchain.destroy(ctx);
     ctx.destroy();
@@ -67,6 +68,7 @@ TEST(EditorTest, ManipulateObject) {
     }
 
     vkDeviceWaitIdle(ctx.device);
+    editor.terminate();
     material->destroy(ctx);
     texture->destroy(ctx);
     frag->destroy(ctx);
