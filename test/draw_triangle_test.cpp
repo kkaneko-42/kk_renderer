@@ -9,9 +9,9 @@ using namespace kk;
 using namespace kk::renderer;
 
 static const std::vector<Vertex> kTriangleVertices = {
-    {{ 0.0f, -0.5f, 0.0f}, {}, {1.0f, 0.0f, 0.0f, 1.0f}},
-    {{ 0.5f,  0.5f, 0.0f}, {}, {0.0f, 1.0f, 0.0f, 1.0f}},
-    {{-0.5f,  0.5f, 0.0f}, {}, {0.0f, 0.0f, 1.0f, 1.0f}},
+    {{ 0.0f, -0.5f, 0.0f}, {}, {}, {1.0f, 0.0f, 0.0f, 1.0f}},
+    {{ 0.5f,  0.5f, 0.0f}, {}, {}, {0.0f, 1.0f, 0.0f, 1.0f}},
+    {{-0.5f,  0.5f, 0.0f}, {}, {}, {0.0f, 0.0f, 1.0f, 1.0f}},
 };
 
 static const std::vector<uint32_t> kTriangleIndices = {

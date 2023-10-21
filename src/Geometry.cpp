@@ -10,10 +10,23 @@
 using namespace kk;
 using namespace kk::renderer;
 
+template <class T>
+static void hash_combine(std::size_t& seed, const T& v)
+{
+    std::hash<T> hasher;
+    seed ^= hasher(v) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
+}
+
 namespace std {
     template<> struct hash<Vertex> {
         size_t operator()(Vertex const& vertex) const {
-            return ((hash<Vec3>()(vertex.position) ^ (hash<Vec4>()(vertex.color) << 1)) >> 1) ^ (hash<Vec2>()(vertex.uv) << 1);
+            size_t hash = 0;
+            hash_combine(hash, vertex.position);
+            hash_combine(hash, vertex.normal);
+            hash_combine(hash, vertex.uv);
+            hash_combine(hash, vertex.color);
+
+            return hash;
         }
     };
 }
