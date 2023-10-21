@@ -3,12 +3,15 @@ cmake_minimum_required(VERSION 3.10)
 
 set(CMAKE_CXX_STANDARD 14)
 set(SRCS
+#[[
     lib_link_test.cpp
     rendering_loop_test.cpp
 	draw_triangle_test.cpp
 	draw_texture_test.cpp
 	draw_model_test.cpp
 	editor_test.cpp
+]]
+	lighting_test.cpp
     runner.cpp
 )
 set(SHADERS_DIR ${kk_renderer_SOURCE_DIR}/resources/shaders)

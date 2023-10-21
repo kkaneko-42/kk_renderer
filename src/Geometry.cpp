@@ -104,6 +104,12 @@ static void loadModel(const std::string& path, std::vector<Vertex>& vertices, st
                 attr.vertices[3 * index.vertex_index + 2]
             };
 
+            vertex.normal = {
+                attr.normals[3 * index.normal_index + 0],
+                attr.normals[3 * index.normal_index + 1],
+                attr.normals[3 * index.normal_index + 2]
+            };
+
             vertex.uv = {
                 attr.texcoords[2 * index.texcoord_index + 0],
                 1.0f - attr.texcoords[2 * index.texcoord_index + 1]
