@@ -27,6 +27,11 @@ namespace kk {
                 // TODO: set dirty flag true
             }
 
+            // CONCERN: Vulkan abstraction
+            inline void setFrontFace(VkFrontFace front_face) {
+                rasterizer_.frontFace = front_face;
+            }
+
             inline std::shared_ptr<Texture> getTexture() const {
                 return texture_;
             }

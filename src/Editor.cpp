@@ -58,3 +58,19 @@ void Editor::render(VkCommandBuffer cmd_buf) {
     ImDrawData* draw_data = ImGui::GetDrawData();
     ImGui_ImplVulkan_RenderDrawData(draw_data, cmd_buf);
 }
+
+void Editor::render(VkCommandBuffer cmd_buf, Transform& transform) {
+    ImGui_ImplVulkan_NewFrame();
+    ImGui_ImplGlfw_NewFrame();
+    ImGui::NewFrame();
+    ImGui::Begin("model");
+    ImGui::InputFloat3("position", reinterpret_cast<float*>(&transform.position));
+    static float rot_input[3] = { 0.0f, 0.0f, 0.0f };
+    ImGui::InputFloat3("rotation", rot_input);
+    transform.rotation = kk::Quat(kk::Vec3(rot_input[0], rot_input[1], rot_input[2]));
+    ImGui::End();
+
+    ImGui::Render();
+    ImDrawData* draw_data = ImGui::GetDrawData();
+    ImGui_ImplVulkan_RenderDrawData(draw_data, cmd_buf);
+}

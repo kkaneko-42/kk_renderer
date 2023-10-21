@@ -28,12 +28,14 @@ TEST(DrawModelTest, ModelDrawing) {
     auto frag = std::make_shared<Shader>(Shader::create(ctx, TEST_RESOURCE_DIR + std::string("/shaders/texture.frag.spv")));
     auto texture = std::make_shared<Texture>(Texture::create(ctx, TEST_RESOURCE_DIR + std::string("/textures/viking_room.png")));
     auto material = std::make_shared<Material>();
+    material->setFrontFace(VK_FRONT_FACE_COUNTER_CLOCKWISE);
     material->setVertexShader(vert);
     material->setFragmentShader(frag);
     material->setTexture(texture);
 
     Renderable renderable{ model, material };
     Transform tf{};
+    tf.rotation = Vec3(-3, 1, 1.5);
     PerspectiveCamera camera(45.0f, swapchain.extent.width / (float)swapchain.extent.height, 0.1f, 10.0f);
     camera.transform.position.z = -3.0f;
 
