@@ -8,4 +8,10 @@
 - [x] カメラ情報を指定して描画
 - [x] textureを貼った三角形を描画
 - [x] shaderを指定して描画
-- [ ] .objを描画
+- [x] .objを描画
+- [x] editorで.objのModel行列を操作する
+- [ ] ライティング(phong shading)
+
+## 改善
+- [ ] dynamic uniform buffer化
+- [ ] フラスタムカリング
