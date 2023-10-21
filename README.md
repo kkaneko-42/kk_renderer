@@ -11,7 +11,9 @@
 - [x] .objを描画
 - [x] editorで.objのModel行列を操作する
 - [ ] ライティング(phong shading)
+- [ ] シャドウマッピング
 
 ## 改善
 - [ ] dynamic uniform buffer化
-- [ ] フラスタムカリング
+- [ ] フラスタムカリング(簡易版)
+- [ ] フラスタムカリング(八分木、GPU駆動)
