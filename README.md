@@ -17,3 +17,5 @@
 - [ ] dynamic uniform buffer化
 - [ ] フラスタムカリング(簡易版)
 - [ ] フラスタムカリング(八分木、GPU駆動)
+- [ ] Shader reflection
+- [ ] Shaderのホットリロード
