@@ -18,9 +18,9 @@ namespace kk {
             static Renderer create(RenderingContext& ctx, Swapchain& swapchain);
             void destroy(RenderingContext& ctx);
 
-            bool beginFrame(RenderingContext& ctx, Swapchain& swapchain);
+            bool beginFrame(RenderingContext& ctx, Swapchain& swapchain, const Camera& camera);
             void endFrame(RenderingContext& ctx, Swapchain& swapchain);
-            void render(RenderingContext& ctx, Renderable& renderable, const Transform& transform, const Camera& camera);
+            void render(RenderingContext& ctx, Renderable& renderable, const Transform& transform);
 
             void compileMaterial(RenderingContext& ctx, const std::shared_ptr<Material>& material);
 
@@ -35,6 +35,18 @@ namespace kk {
             }
 
         private:
+            struct GlobalUniform {
+                alignas(16) Mat4 view;
+                alignas(16) Mat4 proj;
+            };
+
+            struct ObjectUniform {
+                alignas(16) Mat4 model_to_world;
+                alignas(16) Mat4 world_to_model;
+            };
+
+            void createDescriptors(RenderingContext& ctx);
+            void setupCamera(const Camera& camera);
             void prepareRendering(RenderingContext& ctx, Renderable& renderable);
 
             VkRenderPass render_pass_;
@@ -45,7 +57,12 @@ namespace kk {
             size_t current_frame_;
             uint32_t img_idx_;
 
-            std::unordered_map<size_t, std::array<Buffer, kMaxConcurrentFrames>> uniforms_;
+            VkDescriptorSetLayout global_uniform_layout_;
+            std::array<std::pair<Buffer, VkDescriptorSet>, kMaxConcurrentFrames> global_uniforms_;
+            VkDescriptorSetLayout object_uniform_layout_;
+            std::unordered_map<size_t, std::array<std::pair<Buffer, VkDescriptorSet>, kMaxConcurrentFrames>> object_uniforms_;
+
+            bool is_camera_binded_;
         };
     }
 }

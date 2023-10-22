@@ -34,8 +34,8 @@ TEST(LightingTest, Lighting) {
     editor.init(ctx, window, swapchain, renderer);
     while (!window.isClosed()) {
         window.pollEvents();
-        if (renderer.beginFrame(ctx, swapchain)) {
-            renderer.render(ctx, renderable, tf, camera);
+        if (renderer.beginFrame(ctx, swapchain, camera)) {
+            renderer.render(ctx, renderable, tf);
             editor.render(renderer.getCmdBuf(), tf);
             renderer.endFrame(ctx, swapchain);
         }

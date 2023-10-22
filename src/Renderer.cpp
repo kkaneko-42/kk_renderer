@@ -26,16 +26,23 @@ Renderer Renderer::create(RenderingContext& ctx, Swapchain& swapchain) {
     renderer.render_pass_ = createRenderPass(ctx, swapchain.surface_format.format);
     renderer.depth_ = createDepthImage(ctx, swapchain.extent);
     renderer.framebuffers_ = createFramebuffers(ctx, swapchain, renderer.depth_, renderer.render_pass_);
+    renderer.createDescriptors(ctx);
 
     return renderer;
 }
 
 void Renderer::destroy(RenderingContext& ctx) {
-    for (auto& uniform : uniforms_) {
+    for (auto& kvp : object_uniforms_) {
         for (size_t i = 0; i < kMaxConcurrentFrames; ++i) {
-            uniform.second[i].destroy(ctx);
+            kvp.second[i].first.destroy(ctx);
         }
     }
+    vkDestroyDescriptorSetLayout(ctx.device, object_uniform_layout_, nullptr);
+
+    for (auto& kvp : global_uniforms_) {
+        kvp.first.destroy(ctx);
+    }
+    vkDestroyDescriptorSetLayout(ctx.device, global_uniform_layout_, nullptr);
 
     depth_.destroy(ctx);
 
@@ -53,11 +60,14 @@ void Renderer::destroy(RenderingContext& ctx) {
     );
 }
 
-bool Renderer::beginFrame(RenderingContext& ctx, Swapchain& swapchain) {
+bool Renderer::beginFrame(RenderingContext& ctx, Swapchain& swapchain, const Camera& camera) {
     VkResult ret = vkWaitForFences(ctx.device, 1, &ctx.fences[current_frame_], VK_TRUE, UINT64_MAX);
     if (ret != VK_SUCCESS) {
         return false;
     }
+
+    setupCamera(camera);
+    is_camera_binded_ = false;
 
     ret = vkAcquireNextImageKHR(ctx.device, swapchain.swapchain, UINT64_MAX, ctx.present_complete[current_frame_], VK_NULL_HANDLE, &img_idx_);
     if (ret != VK_SUCCESS) {
@@ -115,6 +125,19 @@ bool Renderer::beginFrame(RenderingContext& ctx, Swapchain& swapchain) {
     return true;
 }
 
+void Renderer::setupCamera(const Camera& camera) {
+    GlobalUniform uniform{};
+    uniform.view = glm::lookAt(
+        camera.transform.position,
+        camera.transform.position + camera.transform.rotation * Vec3(0.0f, 0.0f, 1.0f),
+        Vec3(0.0f, -1.0f, 0.0f)
+    );
+    uniform.proj = camera.getProjection();
+
+    auto& dst_buf = global_uniforms_[current_frame_].first;
+    std::memcpy(dst_buf.mapped, &uniform, dst_buf.size);
+}
+
 void Renderer::endFrame(RenderingContext& ctx, Swapchain& swapchain) {
     vkCmdEndRenderPass(cmd_bufs_[current_frame_]);
     assert(vkEndCommandBuffer(cmd_bufs_[current_frame_]) == VK_SUCCESS);
@@ -156,105 +179,94 @@ void Renderer::endFrame(RenderingContext& ctx, Swapchain& swapchain) {
 }
 
 void Renderer::prepareRendering(RenderingContext& ctx, Renderable& renderable) {
-    // Setup uniform buffer
-    if (uniforms_.find(renderable.id) == uniforms_.end()) {
-        for (size_t i = 0; i < kMaxConcurrentFrames; ++i) {
-            Buffer& uniform = uniforms_[renderable.id][i];
-            uniform = Buffer::create(
-                ctx,
-                sizeof(Mat4),
-                VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-                VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
-            );
-            vkMapMemory(ctx.device, uniform.memory, 0, uniform.size, 0, &uniform.mapped);
-        }
-    }
-
     // Set pipeline state
     if (!renderable.material->isCompiled()) {
         renderable.material->compile(ctx, render_pass_);
     }
 
-    // Setup descriptor sets
-    // NOTE: Assert material is compiled (valid descriptor set layouts required)
-    const auto& layouts = renderable.material->getDescriptorSetLayouts();
-    if (renderable.desc_sets[0].size() == 0 && layouts.size() != 0) {
+    // Setup uniform buffers
+    if (object_uniforms_.find(renderable.id) == object_uniforms_.end()) {
         for (size_t i = 0; i < kMaxConcurrentFrames; ++i) {
+            auto& uniform = object_uniforms_[renderable.id][i].first;
+            auto& desc = object_uniforms_[renderable.id][i].second;
+
+            uniform = Buffer::create(
+                ctx,
+                sizeof(ObjectUniform),
+                VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+                VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
+            );
+            vkMapMemory(ctx.device, uniform.memory, 0, uniform.size, 0, &uniform.mapped);
+
             VkDescriptorSetAllocateInfo alloc_info{};
             alloc_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
             alloc_info.descriptorPool = ctx.desc_pool;
-            alloc_info.descriptorSetCount = static_cast<uint32_t>(layouts.size());
-            alloc_info.pSetLayouts = layouts.data();
+            alloc_info.descriptorSetCount = 1;
+            alloc_info.pSetLayouts = &object_uniform_layout_;
+            assert(vkAllocateDescriptorSets(ctx.device, &alloc_info, &desc) == VK_SUCCESS);
 
-            auto& target_sets = renderable.desc_sets[i];
-            target_sets.resize(layouts.size());
-            assert(vkAllocateDescriptorSets(ctx.device, &alloc_info, target_sets.data()) == VK_SUCCESS);
-
-            VkWriteDescriptorSet write_texture{};
-            write_texture.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-            write_texture.dstSet = target_sets[0];
-            write_texture.dstBinding = 0;
-            write_texture.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-            write_texture.descriptorCount = 1;
-
-            VkDescriptorImageInfo tex_info{};
-            tex_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-            auto texture = renderable.material->getTexture();
-            tex_info.imageView = texture->view;
-            tex_info.sampler = texture->sampler;
-            write_texture.pImageInfo = &tex_info;
-
-            VkWriteDescriptorSet write_uniform{};
-            write_uniform.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-            write_uniform.dstSet = target_sets[1];
-            write_uniform.dstBinding = 0;
-            write_uniform.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-            write_uniform.descriptorCount = 1;
+            // Update descriptor
+            VkWriteDescriptorSet write_buf{};
+            write_buf.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+            write_buf.dstSet = desc;
+            write_buf.dstBinding = 0;
+            write_buf.descriptorCount = 1;
+            write_buf.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
 
             VkDescriptorBufferInfo buf_info{};
-            buf_info.buffer = uniforms_[renderable.id][i].buffer;
+            buf_info.buffer = uniform.buffer;
             buf_info.offset = 0;
-            buf_info.range = uniforms_[renderable.id][i].size;
-            write_uniform.pBufferInfo = &buf_info;
+            buf_info.range = uniform.size;
+            write_buf.pBufferInfo = &buf_info;
 
-            VkWriteDescriptorSet writes[] = { write_texture, write_uniform };
-            vkUpdateDescriptorSets(ctx.device, 2, writes, 0, nullptr);
+            vkUpdateDescriptorSets(ctx.device, 1, &write_buf, 0, nullptr);
         }
     }
 }
 
-void Renderer::render(RenderingContext& ctx, Renderable& renderable, const Transform& transform, const Camera& camera) {
+void Renderer::render(RenderingContext& ctx, Renderable& renderable, const Transform& transform) {
     prepareRendering(ctx, renderable);
 
     VkCommandBuffer cmd_buf = cmd_bufs_[current_frame_];
     Material& material = *renderable.material;
     vkCmdBindPipeline(cmd_buf, VK_PIPELINE_BIND_POINT_GRAPHICS, material.getPipeline());
 
-    // Build MVP matrix
-    const Mat4 model =
+    // Build object uniform
+    ObjectUniform uniform{};
+    uniform.model_to_world = 
         glm::scale(glm::mat4(1.0f), transform.scale) *
         glm::mat4_cast(transform.rotation) *
         glm::translate(glm::mat4(1.0f), transform.position)
         ;
-    const Mat4 view = glm::lookAt(
-        camera.transform.position,
-        camera.transform.position + camera.transform.rotation * Vec3(0.0f, 0.0f, 1.0f),
-        Vec3(0.0f, -1.0f, 0.0f)
-    );
-    const Mat4 proj = camera.getProjection();
-    const Mat4 mvp = proj * view * model;
+    uniform.world_to_model = glm::inverse(uniform.model_to_world);
 
-    // Copy MVP to uniform buffer
-    std::memcpy(uniforms_[renderable.id][current_frame_].mapped, &mvp, sizeof(Mat4));
+    // Copy object uniform
+    auto& dst_buf = object_uniforms_[renderable.id][current_frame_].first;
+    std::memcpy(dst_buf.mapped, &uniform, dst_buf.size);
 
     // Set descriptor
+    if (!is_camera_binded_) {
+        vkCmdBindDescriptorSets(
+            cmd_buf,
+            VK_PIPELINE_BIND_POINT_GRAPHICS,
+            material.getPipelineLayout(),
+            0,
+            1,
+            &global_uniforms_[current_frame_].second,
+            0,
+            nullptr
+        );
+        is_camera_binded_ = true;
+    }
+
+    VkDescriptorSet desc_sets[] = { renderable.material->getDescriptorSet(), object_uniforms_[renderable.id][current_frame_].second };
     vkCmdBindDescriptorSets(
-        cmd_bufs_[current_frame_],
+        cmd_buf,
         VK_PIPELINE_BIND_POINT_GRAPHICS,
         material.getPipelineLayout(),
-        0,
-        static_cast<uint32_t>(renderable.desc_sets[current_frame_].size()),
-        renderable.desc_sets[current_frame_].data(),
+        1, // first set
+        2, // desc sets count
+        desc_sets, // desc sets
         0,
         nullptr
     );
@@ -371,4 +383,71 @@ static Image createDepthImage(RenderingContext& ctx, VkExtent2D extent) {
     );
 
     return depth;
+}
+
+void Renderer::createDescriptors(RenderingContext& ctx) {
+    // Create descriptor set layouts
+    VkDescriptorSetLayoutBinding global{};
+    global.binding = 0;
+    global.descriptorCount = 1;
+    global.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    global.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+
+    VkDescriptorSetLayoutCreateInfo global_info{};
+    global_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+    global_info.bindingCount = 1;
+    global_info.pBindings = &global;
+    assert(vkCreateDescriptorSetLayout(ctx.device, &global_info, nullptr, &global_uniform_layout_) == VK_SUCCESS);
+
+    VkDescriptorSetLayoutBinding object{};
+    object.binding = 0;
+    object.descriptorCount = 1;
+    object.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    object.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+
+    VkDescriptorSetLayoutCreateInfo object_info{};
+    object_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+    object_info.bindingCount = 1;
+    object_info.pBindings = &object;
+
+    assert(vkCreateDescriptorSetLayout(ctx.device, &object_info, nullptr, &object_uniform_layout_) == VK_SUCCESS);
+
+    // Create descriptor sets
+    for (size_t i = 0; i < kMaxConcurrentFrames; ++i) {
+        auto& target_buf = global_uniforms_[i].first;
+        auto& target_desc = global_uniforms_[i].second;
+
+        // Allocate
+        VkDescriptorSetAllocateInfo alloc_info{};
+        alloc_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+        alloc_info.descriptorPool = ctx.desc_pool;
+        alloc_info.descriptorSetCount = 1;
+        alloc_info.pSetLayouts = &global_uniform_layout_;
+        assert(vkAllocateDescriptorSets(ctx.device, &alloc_info, &target_desc) == VK_SUCCESS);
+
+        // Create buffer resource
+        target_buf = Buffer::create(
+            ctx,
+            sizeof(GlobalUniform),
+            VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
+        );
+        vkMapMemory(ctx.device, target_buf.memory, 0, target_buf.size, 0, &target_buf.mapped);
+
+        // Update descriptor
+        VkWriteDescriptorSet write_buf{};
+        write_buf.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        write_buf.dstSet = target_desc;
+        write_buf.dstBinding = 0;
+        write_buf.descriptorCount = 1;
+        write_buf.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+        
+        VkDescriptorBufferInfo buf_info{};
+        buf_info.buffer = target_buf.buffer;
+        buf_info.offset = 0;
+        buf_info.range = target_buf.size;
+        write_buf.pBufferInfo = &buf_info;
+
+        vkUpdateDescriptorSets(ctx.device, 1, &write_buf, 0, nullptr);
+    }
 }

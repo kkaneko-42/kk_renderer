@@ -20,7 +20,6 @@ namespace kk {
             size_t id;
             std::shared_ptr<Geometry> geometry;
             std::shared_ptr<Material> material;
-            std::array<std::vector<VkDescriptorSet>, kMaxConcurrentFrames> desc_sets;
         };
     }
 }

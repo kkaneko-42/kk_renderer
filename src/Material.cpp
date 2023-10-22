@@ -27,6 +27,7 @@ void Material::compile(RenderingContext& ctx, VkRenderPass render_pass) {
     // TODO: Destroy resources existing already
     
     buildDescLayout(ctx);
+    buildDescriptorSets(ctx, desc_layouts_[1]);
     buildPipelineLayout(ctx, desc_layouts_);
     buildPipeline(ctx, pipeline_layout_, render_pass);
 
@@ -53,6 +54,32 @@ void Material::buildDescLayout(RenderingContext& ctx) {
         assert(vkCreateDescriptorSetLayout(ctx.device, &info, nullptr, &layout) == VK_SUCCESS);
         desc_layouts_.push_back(layout);
     }
+}
+
+void Material::buildDescriptorSets(RenderingContext& ctx, const VkDescriptorSetLayout& layout) {
+    VkDescriptorSetAllocateInfo alloc_info{};
+    alloc_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+    alloc_info.descriptorPool = ctx.desc_pool;
+    alloc_info.descriptorSetCount = 1;
+    alloc_info.pSetLayouts = &layout;
+    assert(vkAllocateDescriptorSets(ctx.device, &alloc_info, &desc_set_) == VK_SUCCESS);
+
+    // TODO: Support texture rebinding 
+    VkWriteDescriptorSet write_texture{};
+    write_texture.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    write_texture.dstSet = desc_set_;
+    write_texture.dstBinding = 0;
+    write_texture.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    write_texture.descriptorCount = 1;
+
+    assert(texture_ != nullptr);
+    VkDescriptorImageInfo tex_info{};
+    tex_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+    tex_info.imageView = texture_->view;
+    tex_info.sampler = texture_->sampler;
+    write_texture.pImageInfo = &tex_info;
+
+    vkUpdateDescriptorSets(ctx.device, 1, &write_texture, 0, nullptr);
 }
 
 void Material::buildPipelineLayout(RenderingContext& ctx, const std::vector<VkDescriptorSetLayout>& desc_layouts) {

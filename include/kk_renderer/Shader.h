@@ -1,6 +1,8 @@
 #pragma once
 
 #include "RenderingContext.h"
+#include "Mat4.h"
+#include "Texture.h"
 #include <unordered_map>
 #include <string>
 

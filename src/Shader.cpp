@@ -18,19 +18,28 @@ Shader Shader::create(RenderingContext& ctx, const std::string& path) {
     Shader shader;
     assert(vkCreateShaderModule(ctx.device, &info, nullptr, &shader.module) == VK_SUCCESS);
     
-    // TODO: Get from shader reflection
-    shader.sets_bindings[0].resize(1); // How many bindings does descriptor set 0 have ?
-    // What kind of resource does binding 0 require ?
+    // Global uniform layout
+    shader.sets_bindings[0].resize(1); 
     shader.sets_bindings[0][0].binding = 0;
     shader.sets_bindings[0][0].descriptorCount = 1;
-    shader.sets_bindings[0][0].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    shader.sets_bindings[0][0].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+    shader.sets_bindings[0][0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    shader.sets_bindings[0][0].stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
 
-    shader.sets_bindings[1].resize(1);
+    // Material layout
+    // TODO: Get from shader reflection
+    shader.sets_bindings[1].resize(1); // How many bindings does shader require ?
+    // What kind of resource does binding 0 require ?
     shader.sets_bindings[1][0].binding = 0;
     shader.sets_bindings[1][0].descriptorCount = 1;
-    shader.sets_bindings[1][0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    shader.sets_bindings[1][0].stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+    shader.sets_bindings[1][0].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    shader.sets_bindings[1][0].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+
+    // Object uniform layout
+    shader.sets_bindings[2].resize(1);
+    shader.sets_bindings[2][0].binding = 0;
+    shader.sets_bindings[2][0].descriptorCount = 1;
+    shader.sets_bindings[2][0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    shader.sets_bindings[2][0].stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
     
     return shader;
 }

@@ -42,10 +42,12 @@ namespace kk {
             inline VkPipeline getPipeline() const { return pipeline_; }
             inline VkPipelineLayout getPipelineLayout() const { return pipeline_layout_; }
             inline const std::vector<VkDescriptorSetLayout>& getDescriptorSetLayouts() const { return desc_layouts_; }
+            inline const VkDescriptorSet& getDescriptorSet() const { return desc_set_; }
 
         private:
             void setDefault();
             void buildDescLayout(RenderingContext& ctx);
+            void buildDescriptorSets(RenderingContext& ctx, const VkDescriptorSetLayout& layouts);
             void buildPipelineLayout(RenderingContext& ctx, const std::vector<VkDescriptorSetLayout>& desc_layouts);
             void buildPipeline(RenderingContext& ctx, VkPipelineLayout layout, VkRenderPass render_pass);
 
@@ -67,6 +69,8 @@ namespace kk {
 
             VkPipelineLayout pipeline_layout_;
             VkPipeline pipeline_;
+
+            VkDescriptorSet desc_set_;
         };
     }
 }
