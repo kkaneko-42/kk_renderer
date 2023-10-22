@@ -15,13 +15,16 @@ layout(location = 1) in vec3 inNorm;
 layout(location = 2) in vec2 inUV;
 layout(location = 3) in vec4 inColor;
 
-layout(location = 0) out vec3 outNorm;
-layout(location = 1) out vec2 outUV;
-layout(location = 2) out vec4 outColor;
+layout(location = 0) out vec3 outPos;
+layout(location = 1) out vec3 outNorm;
+layout(location = 2) out vec2 outUV;
+layout(location = 3) out vec4 outColor;
+
 
 void main() {
 	gl_Position = perFrame.proj * perFrame.view * perObject.modelToWorld * vec4(inPos, 1.0);
-	outNorm = inNorm;
+	outPos = vec3(perObject.modelToWorld * vec4(inPos, 1.0));
+	outNorm = mat3(transpose(perObject.worldToModel)) * inNorm;
 	outUV = inUV;
 	outColor = inColor;
 }
