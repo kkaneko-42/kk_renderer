@@ -10,7 +10,7 @@
 - [x] shaderを指定して描画
 - [x] .objを描画
 - [x] editorで.objのModel行列を操作する
-- [ ] ライティング(phong shading)
+- [x] ライティング(phong shading)
 - [ ] シャドウマッピング
 
 ## 改善
