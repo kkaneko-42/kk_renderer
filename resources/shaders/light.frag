@@ -38,7 +38,7 @@ void main() {
 
 	vec3 ambient = ambientStrength * ambientColor;
 	vec3 diffuse = max(-dot(normal, lightDir), 0.0) * perView.light.color;
-	vec3 specular = specularStrength * pow(max(-dot(cameraDir, lightReflectDir), 0.0), 32) * perView.light.color;
-	outColor = vec4((ambient + diffuse), 1.0) * texture(texSampler, inUV);
-	// outColor = vec4(cameraDir, 1.0);
+	vec3 specular = specularStrength * pow(max(dot(cameraDir, lightReflectDir), 0.0), 32) * perView.light.color;
+
+	outColor = vec4((ambient + diffuse + specular), 1.0) * texture(texSampler, inUV);
 }
