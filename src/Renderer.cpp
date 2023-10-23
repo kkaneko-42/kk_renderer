@@ -234,9 +234,9 @@ void Renderer::render(RenderingContext& ctx, Renderable& renderable, const Trans
     // Build object uniform
     ObjectUniform uniform{};
     uniform.model_to_world = 
-        glm::scale(glm::mat4(1.0f), transform.scale) *
+        glm::translate(glm::mat4(1.0f), transform.position) *
         glm::mat4_cast(transform.rotation) *
-        glm::translate(glm::mat4(1.0f), transform.position)
+        glm::scale(glm::mat4(1.0f), transform.scale)
         ;
     uniform.world_to_model = glm::inverse(uniform.model_to_world);
 
