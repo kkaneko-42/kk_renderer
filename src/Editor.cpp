@@ -68,6 +68,9 @@ void Editor::render(VkCommandBuffer cmd_buf, Transform& transform) {
     static float rot_input[3] = { 0.0f, 0.0f, 0.0f };
     ImGui::InputFloat3("rotation", rot_input);
     transform.rotation = kk::Quat(kk::Vec3(rot_input[0], rot_input[1], rot_input[2]));
+    static float scale_input[3] = { 1.0f, 1.0f, 1.0f };
+    ImGui::InputFloat3("scale", scale_input);
+    transform.scale = kk::Vec3(scale_input[0], scale_input[1], scale_input[2]);
     ImGui::End();
 
     ImGui::Render();

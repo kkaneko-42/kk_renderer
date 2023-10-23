@@ -23,7 +23,7 @@ Shader Shader::create(RenderingContext& ctx, const std::string& path) {
     shader.sets_bindings[0][0].binding = 0;
     shader.sets_bindings[0][0].descriptorCount = 1;
     shader.sets_bindings[0][0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    shader.sets_bindings[0][0].stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+    shader.sets_bindings[0][0].stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
 
     // Material layout
     // TODO: Get from shader reflection
@@ -39,7 +39,7 @@ Shader Shader::create(RenderingContext& ctx, const std::string& path) {
     shader.sets_bindings[2][0].binding = 0;
     shader.sets_bindings[2][0].descriptorCount = 1;
     shader.sets_bindings[2][0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    shader.sets_bindings[2][0].stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+    shader.sets_bindings[2][0].stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
     
     return shader;
 }

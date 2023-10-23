@@ -60,13 +60,13 @@ void Renderer::destroy(RenderingContext& ctx) {
     );
 }
 
-bool Renderer::beginFrame(RenderingContext& ctx, Swapchain& swapchain, const Camera& camera) {
+bool Renderer::beginFrame(RenderingContext& ctx, Swapchain& swapchain, const Camera& camera, const DirectionalLight& light) {
     VkResult ret = vkWaitForFences(ctx.device, 1, &ctx.fences[current_frame_], VK_TRUE, UINT64_MAX);
     if (ret != VK_SUCCESS) {
         return false;
     }
 
-    setupCamera(camera);
+    setupView(camera, light);
     is_camera_binded_ = false;
 
     ret = vkAcquireNextImageKHR(ctx.device, swapchain.swapchain, UINT64_MAX, ctx.present_complete[current_frame_], VK_NULL_HANDLE, &img_idx_);
@@ -125,7 +125,7 @@ bool Renderer::beginFrame(RenderingContext& ctx, Swapchain& swapchain, const Cam
     return true;
 }
 
-void Renderer::setupCamera(const Camera& camera) {
+void Renderer::setupView(const Camera& camera, const DirectionalLight& light) {
     GlobalUniform uniform{};
     uniform.view = glm::lookAt(
         camera.transform.position,
@@ -133,6 +133,7 @@ void Renderer::setupCamera(const Camera& camera) {
         Vec3(0.0f, -1.0f, 0.0f)
     );
     uniform.proj = camera.getProjection();
+    uniform.light = light;
 
     auto& dst_buf = global_uniforms_[current_frame_].first;
     std::memcpy(dst_buf.mapped, &uniform, dst_buf.size);
@@ -391,7 +392,7 @@ void Renderer::createDescriptors(RenderingContext& ctx) {
     global.binding = 0;
     global.descriptorCount = 1;
     global.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    global.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+    global.stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
 
     VkDescriptorSetLayoutCreateInfo global_info{};
     global_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
@@ -403,7 +404,7 @@ void Renderer::createDescriptors(RenderingContext& ctx) {
     object.binding = 0;
     object.descriptorCount = 1;
     object.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    object.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+    object.stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
 
     VkDescriptorSetLayoutCreateInfo object_info{};
     object_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;

@@ -1,9 +1,16 @@
 #version 450
 
-layout(set = 0, binding = 0) uniform PerFrame {
+struct DirectionalLight {
+	vec3 dir;
+	vec3 color;
+	float intensity;
+};
+
+layout(set = 0, binding = 0) uniform PerView {
 	mat4 view;
 	mat4 proj;
-} perFrame;
+	DirectionalLight light;
+} perView;
 
 layout(set = 2, binding = 0) uniform PerObject {
 	mat4 modelToWorld;
@@ -20,11 +27,10 @@ layout(location = 1) out vec3 outNorm;
 layout(location = 2) out vec2 outUV;
 layout(location = 3) out vec4 outColor;
 
-
 void main() {
-	gl_Position = perFrame.proj * perFrame.view * perObject.modelToWorld * vec4(inPos, 1.0);
+	gl_Position = perView.proj * perView.view * perObject.modelToWorld * vec4(inPos, 1.0);
 	outPos = vec3(perObject.modelToWorld * vec4(inPos, 1.0));
-	outNorm = mat3(transpose(perObject.worldToModel)) * inNorm;
+	outNorm = inNorm;
 	outUV = inUV;
 	outColor = inColor;
 }

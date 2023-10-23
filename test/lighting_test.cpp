@@ -5,6 +5,7 @@
 #define TEST_RESOURCE_DIR "./resources"
 #endif
 
+using namespace kk;
 using namespace kk::renderer;
 
 TEST(LightingTest, Lighting) {
@@ -28,13 +29,14 @@ TEST(LightingTest, Lighting) {
     Transform tf;
     PerspectiveCamera camera(45.0f, swapchain.extent.width / (float)swapchain.extent.height, 0.1f, 10.0f);
     camera.transform.position.z = -5.0f;
+    DirectionalLight light;
 
     Renderer renderer = Renderer::create(ctx, swapchain);
     Editor editor;
     editor.init(ctx, window, swapchain, renderer);
     while (!window.isClosed()) {
         window.pollEvents();
-        if (renderer.beginFrame(ctx, swapchain, camera)) {
+        if (renderer.beginFrame(ctx, swapchain, camera, light)) {
             renderer.render(ctx, renderable, tf);
             editor.render(renderer.getCmdBuf(), tf);
             renderer.endFrame(ctx, swapchain);

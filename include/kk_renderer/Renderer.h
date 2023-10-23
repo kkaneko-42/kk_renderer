@@ -10,6 +10,7 @@
 #include "Camera.h"
 #include "ResourceDescriptor.h"
 #include "Image.h"
+#include "DirectionalLight.h"
 
 namespace kk {
     namespace renderer {
@@ -18,7 +19,7 @@ namespace kk {
             static Renderer create(RenderingContext& ctx, Swapchain& swapchain);
             void destroy(RenderingContext& ctx);
 
-            bool beginFrame(RenderingContext& ctx, Swapchain& swapchain, const Camera& camera);
+            bool beginFrame(RenderingContext& ctx, Swapchain& swapchain, const Camera& camera, const DirectionalLight& light);
             void endFrame(RenderingContext& ctx, Swapchain& swapchain);
             void render(RenderingContext& ctx, Renderable& renderable, const Transform& transform);
 
@@ -38,6 +39,7 @@ namespace kk {
             struct GlobalUniform {
                 alignas(16) Mat4 view;
                 alignas(16) Mat4 proj;
+                DirectionalLight light;
             };
 
             struct ObjectUniform {
@@ -46,7 +48,7 @@ namespace kk {
             };
 
             void createDescriptors(RenderingContext& ctx);
-            void setupCamera(const Camera& camera);
+            void setupView(const Camera& camera, const DirectionalLight& light);
             void prepareRendering(RenderingContext& ctx, Renderable& renderable);
 
             VkRenderPass render_pass_;
