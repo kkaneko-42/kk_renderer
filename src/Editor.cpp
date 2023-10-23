@@ -123,6 +123,7 @@ static void handleCamera(GLFWwindow* window, Camera& camera) {
 
 void Editor::update(VkCommandBuffer cmd_buf, void* window, Transform& model, Camera& camera) {
     handleCamera(static_cast<GLFWwindow*>(window), camera);
+    render(cmd_buf, model);
 }
 
 

@@ -16,7 +16,7 @@ TEST(LightingTest, Lighting) {
     Swapchain swapchain = Swapchain::create(ctx, window);
 
     // Prepare an object
-    auto triangle = std::make_shared<Geometry>(Geometry::create(ctx, TEST_RESOURCE_DIR + std::string("/models/cube.obj")));
+    auto triangle = std::make_shared<Geometry>(Geometry::create(ctx, TEST_RESOURCE_DIR + std::string("/models/sphere.obj")));
     auto texture = std::make_shared<Texture>(Texture::create(ctx, TEST_RESOURCE_DIR + std::string("/textures/brown.jpg")));
     auto vert = std::make_shared<Shader>(Shader::create(ctx, TEST_RESOURCE_DIR + std::string("/shaders/light.vert.spv")));
     auto frag = std::make_shared<Shader>(Shader::create(ctx, TEST_RESOURCE_DIR + std::string("/shaders/light.frag.spv")));
@@ -30,7 +30,7 @@ TEST(LightingTest, Lighting) {
     PerspectiveCamera camera(45.0f, swapchain.extent.width / (float)swapchain.extent.height, 0.1f, 10.0f);
     camera.transform.position.z = -5.0f;
     DirectionalLight light;
-    light.dir = Vec3(0.0f, 1.0f, 0.0f);
+    light.dir = Vec3(0.0f, 1.0f, -1.0f);
 
     Renderer renderer = Renderer::create(ctx, swapchain);
     Editor editor;
