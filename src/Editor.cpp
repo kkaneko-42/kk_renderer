@@ -97,7 +97,7 @@ Quat angleAxis(float rad, const Vec3& axis) {
 }
 
 #include <iostream>
-static void handleMouse(GLFWwindow* window, Camera& camera) {
+static void handleCamera(GLFWwindow* window, Camera& camera) {
     const float translate_speed = 0.005f;
     const float rotate_speed = 0.001f;
     static double prev_x = 0.0, prev_y = 0.0;
@@ -107,11 +107,11 @@ static void handleMouse(GLFWwindow* window, Camera& camera) {
     const double diff_x = x - prev_x;
     const double diff_y = y - prev_y;
 
-    if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_3)) {
+    if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_3) == GLFW_PRESS) {
         // Wheel click
         camera.transform.position += camera.transform.rotation * (translate_speed * Vec3(diff_x, diff_y, 0));
     }
-    else if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_2)) {
+    else if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_2) == GLFW_PRESS) {
         // Right click
         const Vec3 axis = Vec3(-diff_y, diff_x, 0);
         camera.transform.rotation = angleAxis(rotate_speed, axis) * camera.transform.rotation;
@@ -122,7 +122,7 @@ static void handleMouse(GLFWwindow* window, Camera& camera) {
 }
 
 void Editor::update(VkCommandBuffer cmd_buf, void* window, Transform& model, Camera& camera) {
-    handleMouse(static_cast<GLFWwindow*>(window), camera);
+    handleCamera(static_cast<GLFWwindow*>(window), camera);
 }
 
 
