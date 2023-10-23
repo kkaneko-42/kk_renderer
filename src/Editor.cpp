@@ -2,7 +2,11 @@
 #include <imgui.h>
 #include <imgui_impl_glfw.h>
 #include <imgui_impl_vulkan.h>
+#include <GLFW/glfw3.h>
+#include <glm/gtc/quaternion.hpp>
+#include <glm/gtx/quaternion.hpp>
 
+using namespace kk;
 using namespace kk::renderer;
 
 struct kk::renderer::EditorImpl {
@@ -77,6 +81,51 @@ void Editor::render(VkCommandBuffer cmd_buf, Transform& transform) {
     ImDrawData* draw_data = ImGui::GetDrawData();
     ImGui_ImplVulkan_RenderDrawData(draw_data, cmd_buf);
 }
+
+template <class T>
+constexpr int sgn(T value) {
+    return (value > 0) ? 1 : -1;
+}
+
+constexpr Quat angleAxis(float rad, const Vec3& axis) {
+    return Quat(
+        std::cos(rad / 2.0f),
+        axis.x * std::sin(rad / 2.0f),
+        axis.y * std::sin(rad / 2.0f),
+        axis.z * std::sin(rad / 2.0f)
+    );
+}
+
+#include <iostream>
+static void handleMouse(GLFWwindow* window, Camera& camera) {
+    const float translate_speed = 0.005f;
+    const float rotate_speed = 0.001f;
+    static double prev_x = 0.0, prev_y = 0.0;
+
+    double x, y;
+    glfwGetCursorPos(window, &x, &y);
+    const double diff_x = x - prev_x;
+    const double diff_y = y - prev_y;
+
+    if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_3)) {
+        // Wheel click
+        camera.transform.position += camera.transform.rotation * (translate_speed * Vec3(diff_x, diff_y, 0));
+    }
+    else if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_2)) {
+        // Right click
+        const Vec3 axis = Vec3(-diff_y, diff_x, 0);
+        camera.transform.rotation = angleAxis(rotate_speed, axis) * camera.transform.rotation;
+    }
+
+    prev_x = x;
+    prev_y = y;
+}
+
+void Editor::update(VkCommandBuffer cmd_buf, void* window, Transform& model, Camera& camera) {
+    handleMouse(static_cast<GLFWwindow*>(window), camera);
+}
+
+
 
 void Editor::terminate() {
     ImGui_ImplVulkan_Shutdown();

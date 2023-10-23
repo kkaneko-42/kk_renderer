@@ -129,7 +129,7 @@ void Renderer::setupView(const Camera& camera, const DirectionalLight& light) {
     GlobalUniform uniform{};
     uniform.view = glm::lookAt(
         camera.transform.position,
-        camera.transform.position + camera.transform.rotation * Vec3(0.0f, 0.0f, 1.0f),
+        camera.transform.position + camera.transform.getForward(),
         Vec3(0.0f, -1.0f, 0.0f)
     );
     uniform.proj = camera.getProjection();

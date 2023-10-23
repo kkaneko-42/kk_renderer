@@ -30,6 +30,7 @@ TEST(LightingTest, Lighting) {
     PerspectiveCamera camera(45.0f, swapchain.extent.width / (float)swapchain.extent.height, 0.1f, 10.0f);
     camera.transform.position.z = -5.0f;
     DirectionalLight light;
+    light.dir = Vec3(0.0f, 1.0f, 0.0f);
 
     Renderer renderer = Renderer::create(ctx, swapchain);
     Editor editor;
@@ -38,7 +39,7 @@ TEST(LightingTest, Lighting) {
         window.pollEvents();
         if (renderer.beginFrame(ctx, swapchain, camera, light)) {
             renderer.render(ctx, renderable, tf);
-            editor.render(renderer.getCmdBuf(), tf);
+            editor.update(renderer.getCmdBuf(), window.acquireHandle(), tf, camera);
             renderer.endFrame(ctx, swapchain);
         }
     }

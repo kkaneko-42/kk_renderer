@@ -15,6 +15,7 @@ namespace kk {
             void init(RenderingContext& ctx, Window& window, const Swapchain& swapchain, const Renderer& renderer);
             void render(VkCommandBuffer cmd_buf);
             void render(VkCommandBuffer cmd_buf, Transform& transform);
+            void update(VkCommandBuffer cmd_buf, void* window, Transform& model, Camera& camera);
             void terminate();
 
         private:

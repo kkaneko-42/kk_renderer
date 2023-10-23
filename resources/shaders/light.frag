@@ -29,13 +29,19 @@ layout(location = 0) out vec4 outColor;
 // TODO: uniform
 const vec3 ambientColor = vec3(1.0);
 const float ambientStrength = 0.3;
+const float specularStrength = 0.5;
+
+const vec3 cameraDir = vec3(0.0, 0.0, 1.0);
 
 void main() {
 	vec3 normal = normalize(fragNorm);
-	vec3 lightDir = normalize(perView.light.dir);
+	vec3 lightDir = normalize(perObject.worldToModel * vec4(perView.light.dir, 0.0)).xyz;
+	vec3 lightReflectDir = reflect(-lightDir, normal);
+	// vec3 cameraDir = normalize(perObject.worldToModel * vec4(perView.view[2].xyz, 0.0)).xyz;
 
 	vec3 ambient = ambientStrength * ambientColor;
-	vec3 diffuse = perView.light.color * max(-dot(normal, lightDir), 0.0);
-	// outColor = vec4((ambient + diffuse), 1.0) * texture(texSampler, fragUV);
-	outColor = vec4(diffuse, 1.0) * texture(texSampler, fragUV);
+	vec3 diffuse = max(-dot(normal, lightDir), 0.0) * perView.light.color;
+	vec3 specular = specularStrength * pow(max(dot(cameraDir, lightReflectDir), 0.0), 32) * perView.light.color;
+	outColor = vec4((ambient + diffuse + specular), 1.0) * texture(texSampler, fragUV);
+	// outColor = vec4(specular, 1.0) * texture(texSampler, fragUV);
 }
