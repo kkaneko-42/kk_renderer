@@ -87,7 +87,7 @@ constexpr int sgn(T value) {
     return (value > 0) ? 1 : -1;
 }
 
-constexpr Quat angleAxis(float rad, const Vec3& axis) {
+Quat angleAxis(float rad, const Vec3& axis) {
     return Quat(
         std::cos(rad / 2.0f),
         axis.x * std::sin(rad / 2.0f),
