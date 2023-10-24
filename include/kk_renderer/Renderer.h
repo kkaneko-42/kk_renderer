@@ -48,11 +48,14 @@ namespace kk {
             };
 
             void createDescriptors(RenderingContext& ctx);
+            void createFramebuffers(RenderingContext& ctx, const Swapchain& swapchain);
             void setupView(const Camera& camera, const DirectionalLight& light);
             void prepareRendering(RenderingContext& ctx, Renderable& renderable);
 
             VkRenderPass render_pass_;
             Image depth_;
+
+            Texture shadow_map_;
 
             std::vector<VkFramebuffer> framebuffers_;
             std::array<VkCommandBuffer, kMaxConcurrentFrames> cmd_bufs_;

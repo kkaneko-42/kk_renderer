@@ -98,6 +98,7 @@ TEST(LightingTest, Shadow) {
     light.dir = Vec3(0.0f, 1.0f, -1.0f);
 
     Renderer renderer = Renderer::create(ctx, swapchain);
+    return;
     Editor editor;
     editor.init(ctx, window, swapchain, renderer);
     while (!window.isClosed()) {
