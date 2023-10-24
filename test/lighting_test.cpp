@@ -94,6 +94,7 @@ TEST(LightingTest, Shadow) {
     PerspectiveCamera camera(45.0f, swapchain.extent.width / (float)swapchain.extent.height, 0.1f, 10.0f);
     camera.transform.position.z = -5.0f;
     DirectionalLight light;
+    light.pos = Vec3(0.0f, -3.0f, 5.0f);
     light.dir = Vec3(0.0f, 1.0f, -1.0f);
 
     Renderer renderer = Renderer::create(ctx, swapchain);

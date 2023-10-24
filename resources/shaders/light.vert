@@ -1,6 +1,7 @@
 #version 450
 
 struct DirectionalLight {
+	vec3 pos;
 	vec3 dir;
 	vec3 color;
 	float intensity;
