@@ -49,19 +49,18 @@ namespace kk {
 
             void createDescriptors(RenderingContext& ctx);
             void createFramebuffers(RenderingContext& ctx, const Swapchain& swapchain);
-            void createShadowPipeline(RenderingContext& ctx);
+            void createShadowResources(RenderingContext& ctx);
             void setupView(const Camera& camera, const DirectionalLight& light);
             void prepareRendering(RenderingContext& ctx, Renderable& renderable);
 
             VkRenderPass render_pass_;
             Image depth_;
 
-            VkDescriptorSetLayout shadow_desc_layout_;
+            Texture shadow_map_;
+            VkRenderPass shadow_pass_;
             VkPipelineLayout shadow_layout_;
             VkPipeline shadow_pipeline_;
-            std::array<Texture, kMaxConcurrentFrames> shadow_maps_;
-            std::array<VkFramebuffer, kMaxConcurrentFrames> shadow_framebuffers_;
-            std::array<VkDescriptorSet, kMaxConcurrentFrames> shadow_descs_;
+            VkFramebuffer shadow_framebuffer_;
 
             std::vector<VkFramebuffer> framebuffers_;
             std::array<VkCommandBuffer, kMaxConcurrentFrames> cmd_bufs_;
