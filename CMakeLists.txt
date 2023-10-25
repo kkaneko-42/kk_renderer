@@ -19,6 +19,7 @@ set(SRCS
 	src/Material.cpp
 	src/Image.cpp
 	src/Editor.cpp
+	src/PipelineBuilder.cpp
 
 	external/imgui/src/imgui.cpp
 	external/imgui/src/imgui_impl_glfw.cpp

@@ -1,4 +1,5 @@
 #include "kk_renderer/Renderer.h"
+#include "kk_renderer/PipelineBuilder.h"
 #include <cassert>
 #include <iostream>
 #include <vector>
@@ -501,4 +502,11 @@ static Texture createShadowMap(RenderingContext& ctx, VkExtent2D extent) {
         VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
         VK_IMAGE_ASPECT_DEPTH_BIT
     );
+}
+
+void Renderer::createShadowPipeline(RenderingContext& ctx) {
+
+    VkDescriptorSetLayoutCreateInfo desc_layout_info{};
+    desc_layout_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+    desc_layout_info.
 }
