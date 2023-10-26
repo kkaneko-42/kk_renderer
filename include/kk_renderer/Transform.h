@@ -12,7 +12,7 @@ namespace kk {
             Quat rotation;
             Vec3 scale;
 
-            Transform() : position(), rotation({0, 0, 0, 1}), scale({ 1, 1, 1 }) {}
+            Transform() : position(), rotation({1, 0, 0, 0}), scale({ 1, 1, 1 }) {}
 
             inline Vec3 getForward() const {
                 return rotation * Vec3(0, 0, 1);

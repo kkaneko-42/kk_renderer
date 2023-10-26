@@ -3,6 +3,7 @@
 #include <iostream>
 #include <vector>
 #include <cstring>
+#include <glm/gtx/string_cast.hpp>
 
 using namespace kk::renderer;
 
@@ -130,7 +131,7 @@ void Renderer::setupView(const Camera& camera, const DirectionalLight& light) {
     uniform.view = glm::lookAt(
         camera.transform.position,
         camera.transform.position + camera.transform.getForward(),
-        Vec3(0.0f, -1.0f, 0.0f)
+        camera.transform.getUp()
     );
     uniform.proj = camera.getProjection();
     uniform.light = light;

@@ -109,7 +109,7 @@ static void handleCamera(GLFWwindow* window, Camera& camera) {
 
     if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_3) == GLFW_PRESS) {
         // Wheel click
-        camera.transform.position += camera.transform.rotation * (translate_speed * Vec3(diff_x, diff_y, 0));
+        camera.transform.position += camera.transform.rotation * (translate_speed * Vec3(-diff_x, -diff_y, 0));
     }
     else if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_2) == GLFW_PRESS) {
         // Right click
@@ -125,8 +125,6 @@ void Editor::update(VkCommandBuffer cmd_buf, void* window, Transform& model, Cam
     handleCamera(static_cast<GLFWwindow*>(window), camera);
     render(cmd_buf, model);
 }
-
-
 
 void Editor::terminate() {
     ImGui_ImplVulkan_Shutdown();
