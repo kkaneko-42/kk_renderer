@@ -39,7 +39,10 @@ namespace kk {
             struct GlobalUniform {
                 alignas(16) Mat4 view;
                 alignas(16) Mat4 proj;
-                DirectionalLight light;
+                alignas(16) Vec3 light_pos;
+                alignas(16) Vec3 light_dir;
+                alignas(16) Vec3 light_color;
+                float light_intensity;
             };
 
             struct ObjectUniform {

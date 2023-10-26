@@ -8,6 +8,15 @@
 using namespace kk;
 using namespace kk::renderer;
 
+static Quat angleAxis(float rad, const Vec3& axis) {
+    return Quat(
+        std::cos(rad / 2.0f),
+        axis.x * std::sin(rad / 2.0f),
+        axis.y * std::sin(rad / 2.0f),
+        axis.z * std::sin(rad / 2.0f)
+    );
+}
+
 TEST(LightingTest, Lighting) {
     const std::pair<size_t, size_t> size = { 800, 800 };
     const std::string name = "lighting test";
@@ -30,7 +39,8 @@ TEST(LightingTest, Lighting) {
     PerspectiveCamera camera(45.0f, swapchain.extent.width / (float)swapchain.extent.height, 0.1f, 10.0f);
     camera.transform.position.z = -5.0f;
     DirectionalLight light;
-    light.dir = Vec3(0.0f, 1.0f, -1.0f);
+    light.transform.position = Vec3(0, -5, -5);
+    light.transform.rotation = angleAxis(3.1415f / 3.0f, Vec3(-1, 0, 0));
 
     Renderer renderer = Renderer::create(ctx, swapchain);
     Editor editor;

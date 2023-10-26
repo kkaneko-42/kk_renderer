@@ -126,15 +126,21 @@ bool Renderer::beginFrame(RenderingContext& ctx, Swapchain& swapchain, const Cam
     return true;
 }
 
+#include <glm/gtx/string_cast.hpp>
 void Renderer::setupView(const Camera& camera, const DirectionalLight& light) {
     GlobalUniform uniform{};
     uniform.view = glm::lookAt(
         camera.transform.position,
         camera.transform.position + camera.transform.getForward(),
-        camera.transform.getUp()
+        Vec3(0, -1, 0)
     );
     uniform.proj = camera.getProjection();
-    uniform.light = light;
+    uniform.light_pos = light.transform.position;
+    uniform.light_dir = light.transform.rotation * light.transform.getForward();
+    uniform.light_color = light.color;
+    uniform.light_intensity = light.intensity;
+
+    std::cout << "light_dir: " << glm::to_string(uniform.light_dir) << std::endl;
 
     auto& dst_buf = global_uniforms_[current_frame_].first;
     std::memcpy(dst_buf.mapped, &uniform, dst_buf.size);

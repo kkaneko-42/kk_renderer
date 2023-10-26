@@ -82,12 +82,7 @@ void Editor::render(VkCommandBuffer cmd_buf, Transform& transform) {
     ImGui_ImplVulkan_RenderDrawData(draw_data, cmd_buf);
 }
 
-template <class T>
-constexpr int sgn(T value) {
-    return (value > 0) ? 1 : -1;
-}
-
-Quat angleAxis(float rad, const Vec3& axis) {
+static Quat angleAxis(float rad, const Vec3& axis) {
     return Quat(
         std::cos(rad / 2.0f),
         axis.x * std::sin(rad / 2.0f),
