@@ -94,21 +94,24 @@ TEST(LightingTest, Shadow) {
     PerspectiveCamera camera(45.0f, swapchain.extent.width / (float)swapchain.extent.height, 0.1f, 10.0f);
     camera.transform.position.z = -5.0f;
     DirectionalLight light;
-    light.pos = Vec3(0.0f, -3.0f, 5.0f);
+    light.transform.position = Vec3(0.0f, -5.0f, 5.0f);
     light.dir = Vec3(0.0f, 1.0f, -1.0f);
 
+    std::vector<Renderable> scene = { plane_obj, sphere_obj };
+
     Renderer renderer = Renderer::create(ctx, swapchain);
-    return;
     Editor editor;
     editor.init(ctx, window, swapchain, renderer);
     while (!window.isClosed()) {
         window.pollEvents();
+        renderer.render(ctx, scene, light, swapchain);
+        // editor.update(renderer.getCmdBuf(), window.acquireHandle(), sphere_tf, camera);
+        /*
         if (renderer.beginFrame(ctx, swapchain, camera, light)) {
-            renderer.render(ctx, sphere_obj, sphere_tf);
-            renderer.render(ctx, plane_obj, plane_tf);
-            editor.update(renderer.getCmdBuf(), window.acquireHandle(), sphere_tf, camera);
+            
             renderer.endFrame(ctx, swapchain);
         }
+        */
     }
 
     vkDeviceWaitIdle(ctx.device);

@@ -22,6 +22,7 @@ namespace kk {
             bool beginFrame(RenderingContext& ctx, Swapchain& swapchain, const Camera& camera, const DirectionalLight& light);
             void endFrame(RenderingContext& ctx, Swapchain& swapchain);
             void render(RenderingContext& ctx, Renderable& renderable, const Transform& transform);
+            void render(RenderingContext& ctx, std::vector<Renderable>& scene, const DirectionalLight& light, Swapchain& swapchain);
 
             void compileMaterial(RenderingContext& ctx, const std::shared_ptr<Material>& material);
 
@@ -47,6 +48,8 @@ namespace kk {
                 alignas(16) Mat4 world_to_model;
             };
 
+            void renderShadowMap(RenderingContext& ctx, std::vector<Renderable>& scene, const DirectionalLight& light);
+            void renderColor(RenderingContext& ctx, std::vector<Renderable>& scene, const DirectionalLight& light, const Camera& camera, Swapchain& swapchain);
             void createDescriptors(RenderingContext& ctx);
             void createFramebuffers(RenderingContext& ctx, const Swapchain& swapchain);
             void createShadowResources(RenderingContext& ctx);

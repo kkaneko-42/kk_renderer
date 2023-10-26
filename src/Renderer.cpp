@@ -287,6 +287,176 @@ void Renderer::render(RenderingContext& ctx, Renderable& renderable, const Trans
     vkCmdDrawIndexed(cmd_buf, static_cast<uint32_t>(geometry.indices.size()), 1, 0, 0, 0);
 }
 
+void Renderer::renderShadowMap(RenderingContext& ctx, std::vector<Renderable>& scene, const DirectionalLight& light) {
+    VkCommandBuffer cmd_buf = cmd_bufs_[current_frame_];
+    const VkExtent2D shadow_map_extent{ shadow_map_.width, shadow_map_.height };
+
+    VkRenderPassBeginInfo pass_info{};
+    pass_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+    pass_info.renderPass = shadow_pass_;
+    pass_info.framebuffer = shadow_framebuffer_;
+    pass_info.renderArea.extent = shadow_map_extent;
+
+    std::array<VkClearValue, 1> clear_values{};
+    clear_values[0].depthStencil = { 1.0f, 0 };
+    pass_info.clearValueCount = static_cast<uint32_t>(clear_values.size());
+    pass_info.pClearValues = clear_values.data();
+
+    vkCmdBeginRenderPass(cmd_buf, &pass_info, VK_SUBPASS_CONTENTS_INLINE);
+
+    // Set viewport
+    VkViewport viewport{};
+    viewport.width = static_cast<float>(shadow_map_extent.width);
+    viewport.height = static_cast<float>(shadow_map_extent.height);
+    viewport.maxDepth = 1.0f;
+    vkCmdSetViewport(cmd_buf, 0, 1, &viewport);
+
+    // Set scissor
+    VkRect2D scissor{};
+    scissor.extent = shadow_map_extent;
+    vkCmdSetScissor(cmd_buf, 0, 1, &scissor);
+
+    // Setup global uniform
+    GlobalUniform uniform;
+    uniform.view = glm::lookAt(
+        light.pos,
+        light.pos + light.dir,
+        Vec3(0, -1, 0)
+    );
+    uniform.proj = glm::perspective(glm::radians(45.0f), shadow_map_extent.width / (float)shadow_map_extent.height, 0.1f, 10.0f);
+    uniform.proj[1][1] *= -1;
+    uniform.light = light;
+    auto& dst_buf = global_uniforms_[current_frame_].first;
+    std::memcpy(dst_buf.mapped, &uniform, dst_buf.size);
+
+    vkCmdBindDescriptorSets(
+        cmd_buf,
+        VK_PIPELINE_BIND_POINT_GRAPHICS,
+        shadow_layout_,
+        0,
+        1,
+        &global_uniforms_[current_frame_].second,
+        0,
+        nullptr
+    );
+
+    vkCmdBindPipeline(cmd_buf, VK_PIPELINE_BIND_POINT_GRAPHICS, shadow_pipeline_);
+
+    // Render objects
+    for (auto& renderable : scene) {
+        prepareRendering(ctx, renderable);
+
+        vkCmdBindDescriptorSets(
+            cmd_buf,
+            VK_PIPELINE_BIND_POINT_GRAPHICS,
+            shadow_layout_,
+            1,
+            1,
+            &object_uniforms_[renderable.id][current_frame_].second,
+            0,
+            nullptr
+        );
+
+        Geometry& geometry = *renderable.geometry;
+        const VkDeviceSize offsets[] = { 0 };
+        vkCmdBindVertexBuffers(cmd_buf, 0, 1, &geometry.vertex_buffer.buffer, offsets);
+        vkCmdBindIndexBuffer(cmd_buf, geometry.index_buffer.buffer, 0, VK_INDEX_TYPE_UINT32);
+
+        vkCmdDrawIndexed(cmd_buf, static_cast<uint32_t>(geometry.indices.size()), 1, 0, 0, 0);
+    }
+
+    vkCmdEndRenderPass(cmd_buf);
+}
+
+void Renderer::renderColor(RenderingContext& ctx, std::vector<Renderable>& scene, const DirectionalLight& light, const Camera& camera, Swapchain& swapchain) {
+    VkCommandBuffer cmd_buf = cmd_bufs_[current_frame_];
+
+    VkRenderPassBeginInfo pass_info{};
+    pass_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+    pass_info.renderPass = shadow_pass_;
+    pass_info.framebuffer = framebuffers_[current_frame_];
+    pass_info.renderArea.extent = swapchain.extent;
+
+    std::array<VkClearValue, 2> clear_values{};
+    clear_values[0].color = { {0.0f, 0.0f, 0.0f, 0.0f} };
+    clear_values[1].depthStencil = { 1.0f, 0 };
+    pass_info.clearValueCount = static_cast<uint32_t>(clear_values.size());
+    pass_info.pClearValues = clear_values.data();
+
+    vkCmdBeginRenderPass(cmd_buf, &pass_info, VK_SUBPASS_CONTENTS_INLINE);
+
+    // Set viewport
+    VkViewport viewport{};
+    viewport.width = static_cast<float>(swapchain.extent.width);
+    viewport.height = static_cast<float>(swapchain.extent.height);
+    viewport.maxDepth = 1.0f;
+    vkCmdSetViewport(cmd_buf, 0, 1, &viewport);
+
+    // Set scissor
+    VkRect2D scissor{};
+    scissor.extent = swapchain.extent;
+    vkCmdSetScissor(cmd_buf, 0, 1, &scissor);
+
+
+
+    vkCmdEndRenderPass(cmd_buf);
+}
+
+// TODO: Frame beginning
+void Renderer::render(RenderingContext& ctx, std::vector<Renderable>& scene, const DirectionalLight& light, Swapchain& swapchain) {
+    vkWaitForFences(ctx.device, 1, &ctx.fences[current_frame_], VK_TRUE, UINT64_MAX);
+    vkResetFences(ctx.device, 1, &ctx.fences[current_frame_]);
+    
+    VkCommandBuffer cmd_buf = cmd_bufs_[current_frame_];
+    vkResetCommandBuffer(cmd_buf, 0);
+
+    VkCommandBufferBeginInfo begin_info{};
+    begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+    vkBeginCommandBuffer(cmd_buf, &begin_info);
+
+    renderShadowMap(ctx, scene, light);
+
+
+    vkEndCommandBuffer(cmd_buf);
+
+    VkSubmitInfo submit_info{};
+    submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+    submit_info.waitSemaphoreCount = 1;
+    submit_info.pWaitSemaphores = &ctx.present_complete[current_frame_];
+    VkPipelineStageFlags wait_stages[] = { VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT };
+    submit_info.pWaitDstStageMask = wait_stages;
+    submit_info.commandBufferCount = 1;
+    submit_info.pCommandBuffers = &cmd_buf;
+    submit_info.signalSemaphoreCount = 1;
+    submit_info.pSignalSemaphores = &ctx.render_complete[current_frame_];
+
+    VkResult ret = vkQueueSubmit(ctx.graphics_queue, 1, &submit_info, ctx.fences[current_frame_]);
+    if (ret != VK_SUCCESS) {
+        std::cerr << "Failed to graphics submit. Idx: " << current_frame_ << std::endl;
+        return;
+    }
+
+    vkAcquireNextImageKHR(ctx.device, swapchain.swapchain, UINT64_MAX, ctx.present_complete[current_frame_], VK_NULL_HANDLE, &img_idx_);
+
+    VkPresentInfoKHR present_info{};
+    present_info.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
+    present_info.waitSemaphoreCount = 1;
+    present_info.pWaitSemaphores = &ctx.render_complete[current_frame_];
+    present_info.swapchainCount = 1;
+    present_info.pSwapchains = &swapchain.swapchain;
+    present_info.pImageIndices = &img_idx_; // CONCERN
+
+    ret = vkQueuePresentKHR(ctx.present_queue, &present_info);
+    if (ret == VK_ERROR_OUT_OF_DATE_KHR || ret == VK_SUBOPTIMAL_KHR) {
+        // TODO: Recreate swapchain
+    }
+    else if (ret != VK_SUCCESS) {
+        std::cerr << "Failed to present submit. Idx: " << current_frame_ << std::endl;
+    }
+
+    current_frame_ = (current_frame_ + 1) % kMaxConcurrentFrames;
+}
+
 void Renderer::compileMaterial(RenderingContext& ctx, const std::shared_ptr<Material>& material) {
     material->compile(ctx, render_pass_);
 }
