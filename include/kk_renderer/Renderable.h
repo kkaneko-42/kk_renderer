@@ -7,6 +7,7 @@
 #include "Geometry.h"
 #include "Material.h"
 #include "Buffer.h"
+#include "Transform.h"
 
 namespace kk {
     namespace renderer {
@@ -18,6 +19,7 @@ namespace kk {
             );
 
             size_t id;
+            Transform transform;
             std::shared_ptr<Geometry> geometry;
             std::shared_ptr<Material> material;
         };

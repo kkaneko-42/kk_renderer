@@ -320,16 +320,16 @@ void Renderer::renderShadowMap(RenderingContext& ctx, std::vector<Renderable>& s
     vkCmdSetScissor(cmd_buf, 0, 1, &scissor);
 
     // Setup global uniform
-    GlobalUniform uniform{};
-    uniform.view = glm::lookAt(
+    GlobalUniform global_uniform{};
+    global_uniform.view = glm::lookAt(
         light.transform.position,
         light.transform.position + light.transform.getForward(),
         Vec3(0, -1, 0)
     );
-    uniform.proj = glm::perspective(glm::radians(45.0f), shadow_map_extent.width / (float)shadow_map_extent.height, 0.1f, 10.0f);
-    uniform.proj[1][1] *= -1;
+    global_uniform.proj = glm::perspective(glm::radians(45.0f), shadow_map_extent.width / (float)shadow_map_extent.height, 0.1f, 10.0f);
+    global_uniform.proj[1][1] *= -1;
     auto& dst_buf = global_uniforms_[current_frame_].first;
-    std::memcpy(dst_buf.mapped, &uniform, dst_buf.size);
+    std::memcpy(dst_buf.mapped, &global_uniform, dst_buf.size);
 
     vkCmdBindDescriptorSets(
         cmd_buf,
@@ -348,6 +348,16 @@ void Renderer::renderShadowMap(RenderingContext& ctx, std::vector<Renderable>& s
     for (auto& renderable : scene) {
         prepareRendering(ctx, renderable);
 
+        // Setup object uniform
+        ObjectUniform uniform{};
+        uniform.model_to_world =
+            glm::translate(glm::mat4(1.0f), renderable.transform.position) *
+            glm::mat4_cast(renderable.transform.rotation) *
+            glm::scale(glm::mat4(1.0f), renderable.transform.scale)
+            ;
+        uniform.world_to_model = glm::inverse(uniform.model_to_world);
+        dst_buf = object_uniforms_[renderable.id][current_frame_].first;
+        std::memcpy(dst_buf.mapped, &uniform, dst_buf.size);
         vkCmdBindDescriptorSets(
             cmd_buf,
             VK_PIPELINE_BIND_POINT_GRAPHICS,
@@ -373,19 +383,20 @@ void Renderer::renderShadowMap(RenderingContext& ctx, std::vector<Renderable>& s
 void Renderer::renderColor(RenderingContext& ctx, std::vector<Renderable>& scene, const DirectionalLight& light, const Camera& camera, Swapchain& swapchain) {
     VkCommandBuffer cmd_buf = cmd_bufs_[current_frame_];
 
-    VkRenderPassBeginInfo pass_info{};
-    pass_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-    pass_info.renderPass = shadow_pass_;
-    pass_info.framebuffer = framebuffers_[current_frame_];
-    pass_info.renderArea.extent = swapchain.extent;
+    // Begin render pass
+    VkRenderPassBeginInfo render_pass_info{};
+    render_pass_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+    render_pass_info.renderPass = render_pass_;
+    render_pass_info.framebuffer = framebuffers_[img_idx_];
+    render_pass_info.renderArea.extent = swapchain.extent;
 
     std::array<VkClearValue, 2> clear_values{};
-    clear_values[0].color = { {0.0f, 0.0f, 0.0f, 0.0f} };
+    clear_values[0].color = { {0.0f, 0.0f, 0.0f, 1.0f} };
     clear_values[1].depthStencil = { 1.0f, 0 };
-    pass_info.clearValueCount = static_cast<uint32_t>(clear_values.size());
-    pass_info.pClearValues = clear_values.data();
+    render_pass_info.clearValueCount = static_cast<uint32_t>(clear_values.size());
+    render_pass_info.pClearValues = clear_values.data();
 
-    vkCmdBeginRenderPass(cmd_buf, &pass_info, VK_SUBPASS_CONTENTS_INLINE);
+    vkCmdBeginRenderPass(cmd_buf, &render_pass_info, VK_SUBPASS_CONTENTS_INLINE);
 
     // Set viewport
     VkViewport viewport{};
@@ -399,35 +410,87 @@ void Renderer::renderColor(RenderingContext& ctx, std::vector<Renderable>& scene
     scissor.extent = swapchain.extent;
     vkCmdSetScissor(cmd_buf, 0, 1, &scissor);
 
+    // Set global uniform
+    GlobalUniform global{};
+    global.view = glm::lookAt(
+        camera.transform.position,
+        camera.transform.position + camera.transform.getForward(),
+        Vec3(0, -1, 0)
+    );
+    global.proj = camera.getProjection();
+    global.light_pos = light.transform.position;
+    global.light_dir = light.transform.getForward();
+    global.light_color = light.color;
+    global.light_intensity = light.intensity;
+    auto& dst_buf = global_uniforms_[current_frame_].first;
+    std::memcpy(dst_buf.mapped, &global, dst_buf.size);
 
+    for (auto& renderable : scene) {
+        prepareRendering(ctx, renderable);
+
+        Material& material = *renderable.material;
+        vkCmdBindPipeline(cmd_buf, VK_PIPELINE_BIND_POINT_GRAPHICS, material.getPipeline());
+
+        ObjectUniform uniform{};
+        uniform.model_to_world =
+            glm::translate(glm::mat4(1.0f), renderable.transform.position) *
+            glm::mat4_cast(renderable.transform.rotation) *
+            glm::scale(glm::mat4(1.0f), renderable.transform.scale)
+            ;
+        uniform.world_to_model = glm::inverse(uniform.model_to_world);
+        dst_buf = object_uniforms_[renderable.id][current_frame_].first;
+        std::memcpy(dst_buf.mapped, &uniform, dst_buf.size);
+
+        VkDescriptorSet desc_sets[] = { 
+            global_uniforms_[current_frame_].second, // FIXME: This should be bound once
+            renderable.material->getDescriptorSet(),
+            object_uniforms_[renderable.id][current_frame_].second
+        };
+        vkCmdBindDescriptorSets(
+            cmd_buf,
+            VK_PIPELINE_BIND_POINT_GRAPHICS,
+            material.getPipelineLayout(),
+            0, // first set
+            3, // desc sets count
+            desc_sets, // desc sets
+            0,
+            nullptr
+        );
+
+        Geometry& geometry = *renderable.geometry;
+        const VkDeviceSize offsets[] = { 0 };
+        vkCmdBindVertexBuffers(cmd_buf, 0, 1, &geometry.vertex_buffer.buffer, offsets);
+        vkCmdBindIndexBuffer(cmd_buf, geometry.index_buffer.buffer, 0, VK_INDEX_TYPE_UINT32);
+
+        vkCmdDrawIndexed(cmd_buf, static_cast<uint32_t>(geometry.indices.size()), 1, 0, 0, 0);
+    }
 
     vkCmdEndRenderPass(cmd_buf);
 }
 
 // TODO: Frame beginning
-void Renderer::render(RenderingContext& ctx, std::vector<Renderable>& scene, const DirectionalLight& light, Swapchain& swapchain) {
-    vkWaitForFences(ctx.device, 1, &ctx.fences[current_frame_], VK_TRUE, UINT64_MAX);
-    vkAcquireNextImageKHR(ctx.device, swapchain.swapchain, UINT64_MAX, ctx.present_complete[current_frame_], VK_NULL_HANDLE, &img_idx_);
-
-    vkResetFences(ctx.device, 1, &ctx.fences[current_frame_]);
+void Renderer::render(RenderingContext& ctx, std::vector<Renderable>& scene, const DirectionalLight& light, const Camera& camera, Swapchain& swapchain) {
+    assert(vkWaitForFences(ctx.device, 1, &ctx.fences[current_frame_], VK_TRUE, UINT64_MAX) == VK_SUCCESS);
+    assert(vkAcquireNextImageKHR(ctx.device, swapchain.swapchain, UINT64_MAX, ctx.present_complete[current_frame_], VK_NULL_HANDLE, &img_idx_) == VK_SUCCESS);
+    assert(vkResetFences(ctx.device, 1, &ctx.fences[current_frame_]) == VK_SUCCESS);
     
     VkCommandBuffer cmd_buf = cmd_bufs_[current_frame_];
-    vkResetCommandBuffer(cmd_buf, 0);
+    assert(vkResetCommandBuffer(cmd_buf, 0) == VK_SUCCESS);
 
     VkCommandBufferBeginInfo begin_info{};
     begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-    vkBeginCommandBuffer(cmd_buf, &begin_info);
+    assert(vkBeginCommandBuffer(cmd_buf, &begin_info) == VK_SUCCESS);
 
-    renderShadowMap(ctx, scene, light);
+    // renderShadowMap(ctx, scene, light);
+    renderColor(ctx, scene, light, camera, swapchain);
 
-
-    vkEndCommandBuffer(cmd_buf);
+    assert(vkEndCommandBuffer(cmd_buf) == VK_SUCCESS);
 
     VkSubmitInfo submit_info{};
     submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
     submit_info.waitSemaphoreCount = 1;
     submit_info.pWaitSemaphores = &ctx.present_complete[current_frame_];
-    VkPipelineStageFlags wait_stages[] = { VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT };
+    VkPipelineStageFlags wait_stages[] = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
     submit_info.pWaitDstStageMask = wait_stages;
     submit_info.commandBufferCount = 1;
     submit_info.pCommandBuffers = &cmd_buf;

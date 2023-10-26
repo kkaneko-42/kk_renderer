@@ -22,7 +22,7 @@ namespace kk {
             bool beginFrame(RenderingContext& ctx, Swapchain& swapchain, const Camera& camera, const DirectionalLight& light);
             void endFrame(RenderingContext& ctx, Swapchain& swapchain);
             void render(RenderingContext& ctx, Renderable& renderable, const Transform& transform);
-            void render(RenderingContext& ctx, std::vector<Renderable>& scene, const DirectionalLight& light, Swapchain& swapchain);
+            void render(RenderingContext& ctx, std::vector<Renderable>& scene, const DirectionalLight& light, const Camera& camera, Swapchain& swapchain);
 
             void compileMaterial(RenderingContext& ctx, const std::shared_ptr<Material>& material);
 

@@ -94,19 +94,19 @@ TEST(LightingTest, Shadow) {
     plane_mat->setFragmentShader(frag);
 
     Renderable sphere_obj{ sphere, sphere_mat };
-    Transform sphere_tf;
 
     Renderable plane_obj{ plane, plane_mat };
-    Transform plane_tf;
-    plane_tf.position.y = 1.5f;
-    plane_tf.scale = Vec3(4.0f);
+    plane_obj.transform.position.y = 1.5f;
+    plane_obj.transform.scale = Vec3(4.0f);
 
     PerspectiveCamera camera(45.0f, swapchain.extent.width / (float)swapchain.extent.height, 0.1f, 10.0f);
     camera.transform.position.z = -5.0f;
+    // camera.transform.position = Vec3(0.0f, -5.0f, 5.0f);
+    // camera.transform.rotation = angleAxis(3.1415f / 3.0f, Vec3(-1, 0, 0));
     DirectionalLight light;
-    light.transform.position.z = -5.0f;
-    // light.transform.position = Vec3(0.0f, -5.0f, 5.0f);
-    // light.transform.rotation = angleAxis(3.1415f / 3.0f, Vec3(-1, 0, 0));
+    // light.transform.position.z = -5.0f;
+    light.transform.position = Vec3(0.0f, -5.0f, 5.0f);
+    light.transform.rotation = angleAxis(3.1415f / 3.0f, Vec3(-1, 0, 0));
 
     std::vector<Renderable> scene = { plane_obj, sphere_obj };
 
@@ -115,8 +115,8 @@ TEST(LightingTest, Shadow) {
     editor.init(ctx, window, swapchain, renderer);
     while (!window.isClosed()) {
         window.pollEvents();
-        renderer.render(ctx, scene, light, swapchain);
-        // editor.update(renderer.getCmdBuf(), window.acquireHandle(), sphere_tf, camera);
+        renderer.render(ctx, scene, light, camera, swapchain);
+        // editor.update(renderer.getCmdBuf(), window.acquireHandle(), sphere_obj.transform, camera);
         /*
         if (renderer.beginFrame(ctx, swapchain, camera, light)) {
             
