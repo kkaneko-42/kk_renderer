@@ -143,8 +143,6 @@ void Renderer::setupView(const Camera& camera, const DirectionalLight& light) {
     uniform.light_color = light.color;
     uniform.light_intensity = light.intensity;
 
-    std::cout << "light_dir: " << glm::to_string(uniform.light_dir) << std::endl;
-
     auto& dst_buf = global_uniforms_[current_frame_].first;
     std::memcpy(dst_buf.mapped, &uniform, dst_buf.size);
 }
@@ -322,15 +320,14 @@ void Renderer::renderShadowMap(RenderingContext& ctx, std::vector<Renderable>& s
     vkCmdSetScissor(cmd_buf, 0, 1, &scissor);
 
     // Setup global uniform
-    GlobalUniform uniform;
+    GlobalUniform uniform{};
     uniform.view = glm::lookAt(
-        light.pos,
-        light.pos + light.dir,
+        light.transform.position,
+        light.transform.position + light.transform.getForward(),
         Vec3(0, -1, 0)
     );
     uniform.proj = glm::perspective(glm::radians(45.0f), shadow_map_extent.width / (float)shadow_map_extent.height, 0.1f, 10.0f);
     uniform.proj[1][1] *= -1;
-    uniform.light = light;
     auto& dst_buf = global_uniforms_[current_frame_].first;
     std::memcpy(dst_buf.mapped, &uniform, dst_buf.size);
 
@@ -410,6 +407,8 @@ void Renderer::renderColor(RenderingContext& ctx, std::vector<Renderable>& scene
 // TODO: Frame beginning
 void Renderer::render(RenderingContext& ctx, std::vector<Renderable>& scene, const DirectionalLight& light, Swapchain& swapchain) {
     vkWaitForFences(ctx.device, 1, &ctx.fences[current_frame_], VK_TRUE, UINT64_MAX);
+    vkAcquireNextImageKHR(ctx.device, swapchain.swapchain, UINT64_MAX, ctx.present_complete[current_frame_], VK_NULL_HANDLE, &img_idx_);
+
     vkResetFences(ctx.device, 1, &ctx.fences[current_frame_]);
     
     VkCommandBuffer cmd_buf = cmd_bufs_[current_frame_];
@@ -440,8 +439,6 @@ void Renderer::render(RenderingContext& ctx, std::vector<Renderable>& scene, con
         std::cerr << "Failed to graphics submit. Idx: " << current_frame_ << std::endl;
         return;
     }
-
-    vkAcquireNextImageKHR(ctx.device, swapchain.swapchain, UINT64_MAX, ctx.present_complete[current_frame_], VK_NULL_HANDLE, &img_idx_);
 
     VkPresentInfoKHR present_info{};
     present_info.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;

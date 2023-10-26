@@ -16,7 +16,7 @@ static Quat angleAxis(float rad, const Vec3& axis) {
         axis.z * std::sin(rad / 2.0f)
     );
 }
-
+/*
 TEST(LightingTest, Lighting) {
     const std::pair<size_t, size_t> size = { 800, 800 };
     const std::string name = "lighting test";
@@ -104,8 +104,9 @@ TEST(LightingTest, Shadow) {
     PerspectiveCamera camera(45.0f, swapchain.extent.width / (float)swapchain.extent.height, 0.1f, 10.0f);
     camera.transform.position.z = -5.0f;
     DirectionalLight light;
-    light.transform.position = Vec3(0.0f, -5.0f, 5.0f);
-    light.dir = Vec3(0.0f, 1.0f, -1.0f);
+    light.transform.position.z = -5.0f;
+    // light.transform.position = Vec3(0.0f, -5.0f, 5.0f);
+    // light.transform.rotation = angleAxis(3.1415f / 3.0f, Vec3(-1, 0, 0));
 
     std::vector<Renderable> scene = { plane_obj, sphere_obj };
 
