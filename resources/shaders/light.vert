@@ -1,16 +1,12 @@
 #version 450
 
-struct DirectionalLight {
-	vec3 pos;
-	vec3 dir;
-	vec3 color;
-	float intensity;
-};
-
 layout(set = 0, binding = 0) uniform PerView {
 	mat4 view;
 	mat4 proj;
-	DirectionalLight light;
+	vec3 light_pos;
+	vec3 light_dir;
+	vec3 light_color;
+	float light_intensity;
 } perView;
 
 layout(set = 2, binding = 0) uniform PerObject {

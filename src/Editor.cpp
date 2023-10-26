@@ -82,12 +82,7 @@ void Editor::render(VkCommandBuffer cmd_buf, Transform& transform) {
     ImGui_ImplVulkan_RenderDrawData(draw_data, cmd_buf);
 }
 
-template <class T>
-constexpr int sgn(T value) {
-    return (value > 0) ? 1 : -1;
-}
-
-Quat angleAxis(float rad, const Vec3& axis) {
+static Quat angleAxis(float rad, const Vec3& axis) {
     return Quat(
         std::cos(rad / 2.0f),
         axis.x * std::sin(rad / 2.0f),
@@ -109,7 +104,7 @@ static void handleCamera(GLFWwindow* window, Camera& camera) {
 
     if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_3) == GLFW_PRESS) {
         // Wheel click
-        camera.transform.position += camera.transform.rotation * (translate_speed * Vec3(diff_x, diff_y, 0));
+        camera.transform.position += camera.transform.rotation * (translate_speed * Vec3(-diff_x, -diff_y, 0));
     }
     else if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_2) == GLFW_PRESS) {
         // Right click
@@ -125,8 +120,6 @@ void Editor::update(VkCommandBuffer cmd_buf, void* window, Transform& model, Cam
     handleCamera(static_cast<GLFWwindow*>(window), camera);
     render(cmd_buf, model);
 }
-
-
 
 void Editor::terminate() {
     ImGui_ImplVulkan_Shutdown();
