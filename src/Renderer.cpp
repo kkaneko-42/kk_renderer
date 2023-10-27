@@ -4,6 +4,7 @@
 #include <iostream>
 #include <vector>
 #include <cstring>
+#include <glm/gtx/string_cast.hpp>
 // FIXME
 #ifndef TEST_RESOURCE_DIR
 #define TEST_RESOURCE_DIR "./resources"
@@ -12,6 +13,7 @@
 using namespace kk::renderer;
 
 static VkRenderPass createRenderPass(RenderingContext& ctx, VkFormat swapchain_format);
+static Texture createShadowMap(RenderingContext& ctx, VkExtent2D extent);
 static Image createDepthImage(RenderingContext& ctx, VkExtent2D extent);
 
 Renderer Renderer::create(RenderingContext& ctx, Swapchain& swapchain) {
@@ -27,6 +29,7 @@ Renderer Renderer::create(RenderingContext& ctx, Swapchain& swapchain) {
     assert(vkAllocateCommandBuffers(ctx.device, &alloc_info, renderer.cmd_bufs_.data()) == VK_SUCCESS);
 
     // Create graphics pipelines and related objects
+    renderer.shadow_map_ = createShadowMap(ctx, VkExtent2D{ 1024, 1024 });
     renderer.createDescriptors(ctx);
     renderer.createShadowResources(ctx);
     renderer.render_pass_ = createRenderPass(ctx, swapchain.surface_format.format);
@@ -65,14 +68,11 @@ void Renderer::destroy(RenderingContext& ctx) {
     );
 }
 
-bool Renderer::beginFrame(RenderingContext& ctx, Swapchain& swapchain, const Camera& camera, const DirectionalLight& light) {
+bool Renderer::beginFrame(RenderingContext& ctx, Swapchain& swapchain) {
     VkResult ret = vkWaitForFences(ctx.device, 1, &ctx.fences[current_frame_], VK_TRUE, UINT64_MAX);
     if (ret != VK_SUCCESS) {
         return false;
     }
-
-    setupView(camera, light);
-    is_camera_binded_ = false;
 
     ret = vkAcquireNextImageKHR(ctx.device, swapchain.swapchain, UINT64_MAX, ctx.present_complete[current_frame_], VK_NULL_HANDLE, &img_idx_);
     if (ret != VK_SUCCESS) {
@@ -100,55 +100,10 @@ bool Renderer::beginFrame(RenderingContext& ctx, Swapchain& swapchain, const Cam
     begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
     assert(vkBeginCommandBuffer(current_buf, &begin_info) == VK_SUCCESS);
 
-    // Begin render pass
-    VkRenderPassBeginInfo render_pass_info{};
-    render_pass_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-    render_pass_info.renderPass = render_pass_;
-    render_pass_info.framebuffer = framebuffers_[img_idx_];
-    render_pass_info.renderArea.extent = swapchain.extent;
-
-    std::array<VkClearValue, 2> clear_values{};
-    clear_values[0].color = { {0.0f, 0.0f, 0.0f, 1.0f} };
-    clear_values[1].depthStencil = { 1.0f, 0 };
-    render_pass_info.clearValueCount = static_cast<uint32_t>(clear_values.size());
-    render_pass_info.pClearValues = clear_values.data();
-
-    vkCmdBeginRenderPass(current_buf, &render_pass_info, VK_SUBPASS_CONTENTS_INLINE);
-
-    // Set viewport
-    VkViewport viewport{};
-    viewport.width = static_cast<float>(swapchain.extent.width);
-    viewport.height = static_cast<float>(swapchain.extent.height);
-    viewport.maxDepth = 1.0f;
-    vkCmdSetViewport(current_buf, 0, 1, &viewport);
-
-    // Set scissor
-    VkRect2D scissor{};
-    scissor.extent = swapchain.extent;
-    vkCmdSetScissor(current_buf, 0, 1, &scissor);
-
     return true;
 }
 
-void Renderer::setupView(const Camera& camera, const DirectionalLight& light) {
-    GlobalUniform uniform{};
-    uniform.view = glm::lookAt(
-        camera.transform.position,
-        camera.transform.position + camera.transform.getForward(),
-        Vec3(0, -1, 0)
-    );
-    uniform.proj = camera.getProjection();
-    uniform.light_pos = light.transform.position;
-    uniform.light_dir = light.transform.rotation * light.transform.getForward();
-    uniform.light_color = light.color;
-    uniform.light_intensity = light.intensity;
-
-    auto& dst_buf = global_uniforms_[current_frame_].first;
-    std::memcpy(dst_buf.mapped, &uniform, dst_buf.size);
-}
-
 void Renderer::endFrame(RenderingContext& ctx, Swapchain& swapchain) {
-    vkCmdEndRenderPass(cmd_bufs_[current_frame_]);
     assert(vkEndCommandBuffer(cmd_bufs_[current_frame_]) == VK_SUCCESS);
 
     VkSubmitInfo submit_info{};
@@ -326,10 +281,10 @@ void Renderer::renderShadowMap(RenderingContext& ctx, std::vector<Renderable>& s
         light.transform.position + light.transform.getForward(),
         Vec3(0, -1, 0)
     );
-    global_uniform.proj = glm::perspective(glm::radians(45.0f), shadow_map_extent.width / (float)shadow_map_extent.height, 0.1f, 10.0f);
+    global_uniform.proj = glm::ortho<float>(-10, 10, -10, 10, -10, 20); // TODO: Set from outside
     global_uniform.proj[1][1] *= -1;
-    auto& dst_buf = shadow_global_uniforms_[current_frame_].first;
-    std::memcpy(dst_buf.mapped, &global_uniform, dst_buf.size);
+    auto& current_global = shadow_global_uniforms_[current_frame_].first;
+    std::memcpy(current_global.mapped, &global_uniform, current_global.size);
 
     vkCmdBindDescriptorSets(
         cmd_buf,
@@ -356,8 +311,8 @@ void Renderer::renderShadowMap(RenderingContext& ctx, std::vector<Renderable>& s
             glm::scale(glm::mat4(1.0f), renderable.transform.scale)
             ;
         uniform.world_to_model = glm::inverse(uniform.model_to_world);
-        dst_buf = object_uniforms_[renderable.id][current_frame_].first;
-        std::memcpy(dst_buf.mapped, &uniform, dst_buf.size);
+        auto& current_object = object_uniforms_[renderable.id][current_frame_].first;
+        std::memcpy(current_object.mapped, &uniform, current_object.size);
         vkCmdBindDescriptorSets(
             cmd_buf,
             VK_PIPELINE_BIND_POINT_GRAPHICS,
@@ -418,12 +373,19 @@ void Renderer::renderColor(RenderingContext& ctx, std::vector<Renderable>& scene
         Vec3(0, -1, 0)
     );
     global.proj = camera.getProjection();
+    global.light_view = glm::lookAt(
+        light.transform.position,
+        light.transform.position + light.transform.getForward(),
+        Vec3(0, -1, 0)
+    );
+    global.light_proj = glm::ortho<float>(-10, 10, -10, 10, -10, 20);
+    global.light_proj[1][1] *= -1;
     global.light_pos = light.transform.position;
     global.light_dir = light.transform.getForward();
     global.light_color = light.color;
     global.light_intensity = light.intensity;
-    auto& dst_buf = global_uniforms_[current_frame_].first;
-    std::memcpy(dst_buf.mapped, &global, dst_buf.size);
+    auto& current_global = global_uniforms_[current_frame_].first;
+    std::memcpy(current_global.mapped, &global, current_global.size);
 
     for (auto& renderable : scene) {
         prepareRendering(ctx, renderable);
@@ -438,8 +400,8 @@ void Renderer::renderColor(RenderingContext& ctx, std::vector<Renderable>& scene
             glm::scale(glm::mat4(1.0f), renderable.transform.scale)
             ;
         uniform.world_to_model = glm::inverse(uniform.model_to_world);
-        dst_buf = object_uniforms_[renderable.id][current_frame_].first;
-        std::memcpy(dst_buf.mapped, &uniform, dst_buf.size);
+        auto& current_object = object_uniforms_[renderable.id][current_frame_].first;
+        std::memcpy(current_object.mapped, &uniform, current_object.size);
 
         VkDescriptorSet desc_sets[] = { 
             global_uniforms_[current_frame_].second, // FIXME: This should be bound once
@@ -470,56 +432,8 @@ void Renderer::renderColor(RenderingContext& ctx, std::vector<Renderable>& scene
 
 // TODO: Frame beginning
 void Renderer::render(RenderingContext& ctx, std::vector<Renderable>& scene, const DirectionalLight& light, const Camera& camera, Swapchain& swapchain) {
-    assert(vkWaitForFences(ctx.device, 1, &ctx.fences[current_frame_], VK_TRUE, UINT64_MAX) == VK_SUCCESS);
-    assert(vkAcquireNextImageKHR(ctx.device, swapchain.swapchain, UINT64_MAX, ctx.present_complete[current_frame_], VK_NULL_HANDLE, &img_idx_) == VK_SUCCESS);
-    assert(vkResetFences(ctx.device, 1, &ctx.fences[current_frame_]) == VK_SUCCESS);
-    
-    VkCommandBuffer cmd_buf = cmd_bufs_[current_frame_];
-    assert(vkResetCommandBuffer(cmd_buf, 0) == VK_SUCCESS);
-
-    VkCommandBufferBeginInfo begin_info{};
-    begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-    assert(vkBeginCommandBuffer(cmd_buf, &begin_info) == VK_SUCCESS);
-
     renderShadowMap(ctx, scene, light);
     renderColor(ctx, scene, light, camera, swapchain);
-
-    assert(vkEndCommandBuffer(cmd_buf) == VK_SUCCESS);
-
-    VkSubmitInfo submit_info{};
-    submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-    submit_info.waitSemaphoreCount = 1;
-    submit_info.pWaitSemaphores = &ctx.present_complete[current_frame_];
-    VkPipelineStageFlags wait_stages[] = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
-    submit_info.pWaitDstStageMask = wait_stages;
-    submit_info.commandBufferCount = 1;
-    submit_info.pCommandBuffers = &cmd_buf;
-    submit_info.signalSemaphoreCount = 1;
-    submit_info.pSignalSemaphores = &ctx.render_complete[current_frame_];
-
-    VkResult ret = vkQueueSubmit(ctx.graphics_queue, 1, &submit_info, ctx.fences[current_frame_]);
-    if (ret != VK_SUCCESS) {
-        std::cerr << "Failed to graphics submit. Idx: " << current_frame_ << std::endl;
-        return;
-    }
-
-    VkPresentInfoKHR present_info{};
-    present_info.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
-    present_info.waitSemaphoreCount = 1;
-    present_info.pWaitSemaphores = &ctx.render_complete[current_frame_];
-    present_info.swapchainCount = 1;
-    present_info.pSwapchains = &swapchain.swapchain;
-    present_info.pImageIndices = &img_idx_; // CONCERN
-
-    ret = vkQueuePresentKHR(ctx.present_queue, &present_info);
-    if (ret == VK_ERROR_OUT_OF_DATE_KHR || ret == VK_SUBOPTIMAL_KHR) {
-        // TODO: Recreate swapchain
-    }
-    else if (ret != VK_SUCCESS) {
-        std::cerr << "Failed to present submit. Idx: " << current_frame_ << std::endl;
-    }
-
-    current_frame_ = (current_frame_ + 1) % kMaxConcurrentFrames;
 }
 
 void Renderer::compileMaterial(RenderingContext& ctx, const std::shared_ptr<Material>& material) {
@@ -626,16 +540,22 @@ static Image createDepthImage(RenderingContext& ctx, VkExtent2D extent) {
 
 void Renderer::createDescriptors(RenderingContext& ctx) {
     // Create descriptor set layouts
-    VkDescriptorSetLayoutBinding global{};
-    global.binding = 0;
-    global.descriptorCount = 1;
-    global.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    global.stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
+    std::array<VkDescriptorSetLayoutBinding, 2> globals{};
+    // Uniform(camera view, proj, light dir, etc)
+    globals[0].binding = 0;
+    globals[0].descriptorCount = 1;
+    globals[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    globals[0].stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
+    // Shadow map
+    globals[1].binding = 1;
+    globals[1].descriptorCount = 1;
+    globals[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    globals[1].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
 
     VkDescriptorSetLayoutCreateInfo global_info{};
     global_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-    global_info.bindingCount = 1;
-    global_info.pBindings = &global;
+    global_info.bindingCount = static_cast<uint32_t>(globals.size());
+    global_info.pBindings = globals.data();
     assert(vkCreateDescriptorSetLayout(ctx.device, &global_info, nullptr, &global_uniform_layout_) == VK_SUCCESS);
 
     VkDescriptorSetLayoutBinding object{};
@@ -648,7 +568,6 @@ void Renderer::createDescriptors(RenderingContext& ctx) {
     object_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
     object_info.bindingCount = 1;
     object_info.pBindings = &object;
-
     assert(vkCreateDescriptorSetLayout(ctx.device, &object_info, nullptr, &object_uniform_layout_) == VK_SUCCESS);
 
     // Create descriptor sets
@@ -683,7 +602,7 @@ void Renderer::createDescriptors(RenderingContext& ctx) {
         );
         vkMapMemory(ctx.device, shadow_buf.memory, 0, shadow_buf.size, 0, &shadow_buf.mapped);
 
-        // Update descriptor
+        // Color pass uniform
         VkWriteDescriptorSet write_color_buf{};
         write_color_buf.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
         write_color_buf.dstSet = color_desc;
@@ -697,6 +616,18 @@ void Renderer::createDescriptors(RenderingContext& ctx) {
         color_buf_info.range = color_buf.size;
         write_color_buf.pBufferInfo = &color_buf_info;
 
+        // Color pass shadow map
+        VkWriteDescriptorSet write_shadow_map = write_color_buf;
+        write_shadow_map.dstBinding = 1;
+        write_shadow_map.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+
+        VkDescriptorImageInfo shadow_map_info{};
+        shadow_map_info.imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL;
+        shadow_map_info.imageView = shadow_map_.view;
+        shadow_map_info.sampler = shadow_map_.sampler;
+        write_shadow_map.pImageInfo = &shadow_map_info;
+
+        // Shadow pass uniform
         VkWriteDescriptorSet write_shadow_buf = write_color_buf;
         write_shadow_buf.dstSet = shadow_desc;
         
@@ -706,31 +637,30 @@ void Renderer::createDescriptors(RenderingContext& ctx) {
         shadow_buf_info.range = shadow_buf.size;
         write_shadow_buf.pBufferInfo = &shadow_buf_info;
 
-        vkUpdateDescriptorSets(ctx.device, 1, &write_color_buf, 0, nullptr);
-        vkUpdateDescriptorSets(ctx.device, 1, &write_shadow_buf, 0, nullptr);
+        VkWriteDescriptorSet writes[] = { write_color_buf, write_shadow_map, write_shadow_buf };
+        vkUpdateDescriptorSets(ctx.device, 3, writes, 0, nullptr);
     }
 }
 
-void Renderer::createShadowResources(RenderingContext& ctx) {
-    // Create shadow map
-    // TODO: query format
-    VkFormat format = VK_FORMAT_D16_UNORM;
-    shadow_map_ = Texture::create(
+static Texture createShadowMap(RenderingContext& ctx, VkExtent2D extent) {
+    return Texture::create(
         ctx,
         nullptr,
         2,
-        1024,
-        1024,
-        format,
+        extent.width,
+        extent.height,
+        VK_FORMAT_D16_UNORM, // TODO: query format
         VK_IMAGE_TILING_OPTIMAL,
         VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
         VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
         VK_IMAGE_ASPECT_DEPTH_BIT
     );
+}
 
+void Renderer::createShadowResources(RenderingContext& ctx) {
     // Create render pass
     VkAttachmentDescription shadow{};
-    shadow.format = format;
+    shadow.format = VK_FORMAT_D16_UNORM; // TODO: query format
     shadow.samples = VK_SAMPLE_COUNT_1_BIT;
     shadow.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
     shadow.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
@@ -793,6 +723,7 @@ void Renderer::createShadowResources(RenderingContext& ctx) {
         .setDefault()
         .setVertexShader(vert)
         .setFragmentShader(frag)
+        .setFrontFace(VK_FRONT_FACE_CLOCKWISE)
         .build(ctx, 0, shadow_layout_, shadow_pass_)
     ;
     vert->destroy(ctx);

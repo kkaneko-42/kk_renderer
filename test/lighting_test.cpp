@@ -1,4 +1,5 @@
 #include <gtest/gtest.h>
+#include <glm/gtx/string_cast.hpp>
 #include "kk_renderer/kk_renderer.h"
 #include "kk_renderer/Editor.h"
 #ifndef TEST_RESOURCE_DIR
@@ -80,8 +81,8 @@ TEST(LightingTest, Shadow) {
     auto plane = std::make_shared<Geometry>(Geometry::create(ctx, TEST_RESOURCE_DIR + std::string("/models/plane.obj")));
     auto brown = std::make_shared<Texture>(Texture::create(ctx, TEST_RESOURCE_DIR + std::string("/textures/brown.jpg")));
     auto white = std::make_shared<Texture>(Texture::create(ctx, TEST_RESOURCE_DIR + std::string("/textures/white.jpg")));
-    auto vert = std::make_shared<Shader>(Shader::create(ctx, TEST_RESOURCE_DIR + std::string("/shaders/light.vert.spv")));
-    auto frag = std::make_shared<Shader>(Shader::create(ctx, TEST_RESOURCE_DIR + std::string("/shaders/light.frag.spv")));
+    auto vert = std::make_shared<Shader>(Shader::create(ctx, TEST_RESOURCE_DIR + std::string("/shaders/shadow_light.vert.spv")));
+    auto frag = std::make_shared<Shader>(Shader::create(ctx, TEST_RESOURCE_DIR + std::string("/shaders/shadow_light.frag.spv")));
     auto sphere_mat = std::make_shared<Material>();
     sphere_mat->setTexture(brown);
     sphere_mat->setVertexShader(vert);
@@ -92,13 +93,15 @@ TEST(LightingTest, Shadow) {
     plane_mat->setFragmentShader(frag);
 
     Renderable sphere_obj{ sphere, sphere_mat };
+    // sphere_obj.transform.position.x = 1.0f;
+    // sphere_obj.transform.position.z = 2.0f;
 
     Renderable plane_obj{ plane, plane_mat };
     plane_obj.transform.position.y = 1.5f;
     plane_obj.transform.rotation = angleAxis(glm::radians(180.0f), Vec3(1, 0, 0));
     plane_obj.transform.scale = Vec3(4.0f);
 
-    PerspectiveCamera camera(45.0f, swapchain.extent.width / (float)swapchain.extent.height, 0.1f, 10.0f);
+    PerspectiveCamera camera(45.0f, swapchain.extent.width / (float)swapchain.extent.height, 0.1f, 100.0f);
     camera.transform.position.z = -5.0f;
     DirectionalLight light;
     light.transform.position = Vec3(0.0f, -5.0f, -5.0f);
@@ -111,14 +114,11 @@ TEST(LightingTest, Shadow) {
     editor.init(ctx, window, swapchain, renderer);
     while (!window.isClosed()) {
         window.pollEvents();
-        renderer.render(ctx, scene, light, camera, swapchain);
-        // editor.update(renderer.getCmdBuf(), window.acquireHandle(), sphere_obj.transform, camera);
-        /*
-        if (renderer.beginFrame(ctx, swapchain, camera, light)) {
-            
+        if (renderer.beginFrame(ctx, swapchain)) {
+            renderer.render(ctx, scene, light, camera, swapchain);
+            editor.update(renderer.getCmdBuf(), renderer.getFramebuf(), window.acquireHandle(), scene[1].transform, camera);
             renderer.endFrame(ctx, swapchain);
         }
-        */
     }
 
     vkDeviceWaitIdle(ctx.device);

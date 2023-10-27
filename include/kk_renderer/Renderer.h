@@ -19,16 +19,16 @@ namespace kk {
             static Renderer create(RenderingContext& ctx, Swapchain& swapchain);
             void destroy(RenderingContext& ctx);
 
-            bool beginFrame(RenderingContext& ctx, Swapchain& swapchain, const Camera& camera, const DirectionalLight& light);
+            bool beginFrame(RenderingContext& ctx, Swapchain& swapchain);
             void endFrame(RenderingContext& ctx, Swapchain& swapchain);
             void render(RenderingContext& ctx, Renderable& renderable, const Transform& transform);
             void render(RenderingContext& ctx, std::vector<Renderable>& scene, const DirectionalLight& light, const Camera& camera, Swapchain& swapchain);
 
             void compileMaterial(RenderingContext& ctx, const std::shared_ptr<Material>& material);
 
-            // FIXME: For editor initialization, render pass should be public.
-            inline VkRenderPass getRenderPass() const {
-                return render_pass_;
+            // FIXME: For editor initialization, framebuffer should be public.
+            inline VkFramebuffer getFramebuf() const {
+                return framebuffers_[img_idx_];
             }
 
             // FIXME: For editor rendering, cmd buf should be public.
@@ -40,6 +40,8 @@ namespace kk {
             struct GlobalUniform {
                 alignas(16) Mat4 view;
                 alignas(16) Mat4 proj;
+                alignas(16) Mat4 light_view;
+                alignas(16) Mat4 light_proj;
                 alignas(16) Vec3 light_pos;
                 alignas(16) Vec3 light_dir;
                 alignas(16) Vec3 light_color;
