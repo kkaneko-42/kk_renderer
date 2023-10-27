@@ -328,7 +328,7 @@ void Renderer::renderShadowMap(RenderingContext& ctx, std::vector<Renderable>& s
     );
     global_uniform.proj = glm::perspective(glm::radians(45.0f), shadow_map_extent.width / (float)shadow_map_extent.height, 0.1f, 10.0f);
     global_uniform.proj[1][1] *= -1;
-    auto& dst_buf = global_uniforms_[current_frame_].first;
+    auto& dst_buf = shadow_global_uniforms_[current_frame_].first;
     std::memcpy(dst_buf.mapped, &global_uniform, dst_buf.size);
 
     vkCmdBindDescriptorSets(
@@ -337,7 +337,7 @@ void Renderer::renderShadowMap(RenderingContext& ctx, std::vector<Renderable>& s
         shadow_layout_,
         0,
         1,
-        &global_uniforms_[current_frame_].second,
+        &shadow_global_uniforms_[current_frame_].second,
         0,
         nullptr
     );
@@ -481,7 +481,7 @@ void Renderer::render(RenderingContext& ctx, std::vector<Renderable>& scene, con
     begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
     assert(vkBeginCommandBuffer(cmd_buf, &begin_info) == VK_SUCCESS);
 
-    // renderShadowMap(ctx, scene, light);
+    renderShadowMap(ctx, scene, light);
     renderColor(ctx, scene, light, camera, swapchain);
 
     assert(vkEndCommandBuffer(cmd_buf) == VK_SUCCESS);
@@ -653,8 +653,10 @@ void Renderer::createDescriptors(RenderingContext& ctx) {
 
     // Create descriptor sets
     for (size_t i = 0; i < kMaxConcurrentFrames; ++i) {
-        auto& target_buf = global_uniforms_[i].first;
-        auto& target_desc = global_uniforms_[i].second;
+        auto& color_buf = global_uniforms_[i].first;
+        auto& color_desc = global_uniforms_[i].second;
+        auto& shadow_buf = shadow_global_uniforms_[i].first;
+        auto& shadow_desc = shadow_global_uniforms_[i].second;
 
         // Allocate
         VkDescriptorSetAllocateInfo alloc_info{};
@@ -662,32 +664,50 @@ void Renderer::createDescriptors(RenderingContext& ctx) {
         alloc_info.descriptorPool = ctx.desc_pool;
         alloc_info.descriptorSetCount = 1;
         alloc_info.pSetLayouts = &global_uniform_layout_;
-        assert(vkAllocateDescriptorSets(ctx.device, &alloc_info, &target_desc) == VK_SUCCESS);
+        assert(vkAllocateDescriptorSets(ctx.device, &alloc_info, &color_desc) == VK_SUCCESS);
+        assert(vkAllocateDescriptorSets(ctx.device, &alloc_info, &shadow_desc) == VK_SUCCESS);
 
         // Create buffer resource
-        target_buf = Buffer::create(
+        color_buf = Buffer::create(
             ctx,
             sizeof(GlobalUniform),
             VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
             VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
         );
-        vkMapMemory(ctx.device, target_buf.memory, 0, target_buf.size, 0, &target_buf.mapped);
+        vkMapMemory(ctx.device, color_buf.memory, 0, color_buf.size, 0, &color_buf.mapped);
+        shadow_buf = Buffer::create(
+            ctx,
+            sizeof(GlobalUniform),
+            VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
+        );
+        vkMapMemory(ctx.device, shadow_buf.memory, 0, shadow_buf.size, 0, &shadow_buf.mapped);
 
         // Update descriptor
-        VkWriteDescriptorSet write_buf{};
-        write_buf.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-        write_buf.dstSet = target_desc;
-        write_buf.dstBinding = 0;
-        write_buf.descriptorCount = 1;
-        write_buf.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-        
-        VkDescriptorBufferInfo buf_info{};
-        buf_info.buffer = target_buf.buffer;
-        buf_info.offset = 0;
-        buf_info.range = target_buf.size;
-        write_buf.pBufferInfo = &buf_info;
+        VkWriteDescriptorSet write_color_buf{};
+        write_color_buf.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        write_color_buf.dstSet = color_desc;
+        write_color_buf.dstBinding = 0;
+        write_color_buf.descriptorCount = 1;
+        write_color_buf.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
 
-        vkUpdateDescriptorSets(ctx.device, 1, &write_buf, 0, nullptr);
+        VkDescriptorBufferInfo color_buf_info{};
+        color_buf_info.buffer = color_buf.buffer;
+        color_buf_info.offset = 0;
+        color_buf_info.range = color_buf.size;
+        write_color_buf.pBufferInfo = &color_buf_info;
+
+        VkWriteDescriptorSet write_shadow_buf = write_color_buf;
+        write_shadow_buf.dstSet = shadow_desc;
+        
+        VkDescriptorBufferInfo shadow_buf_info{};
+        shadow_buf_info.buffer = shadow_buf.buffer;
+        shadow_buf_info.offset = 0;
+        shadow_buf_info.range = shadow_buf.size;
+        write_shadow_buf.pBufferInfo = &shadow_buf_info;
+
+        vkUpdateDescriptorSets(ctx.device, 1, &write_color_buf, 0, nullptr);
+        vkUpdateDescriptorSets(ctx.device, 1, &write_shadow_buf, 0, nullptr);
     }
 }
 

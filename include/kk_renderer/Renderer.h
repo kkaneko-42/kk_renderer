@@ -67,6 +67,7 @@ namespace kk {
             VkPipelineLayout shadow_layout_;
             VkPipeline shadow_pipeline_;
             VkFramebuffer shadow_framebuffer_;
+            std::array<std::pair<Buffer, VkDescriptorSet>, kMaxConcurrentFrames> shadow_global_uniforms_;
 
             std::vector<VkFramebuffer> framebuffers_;
             std::array<VkCommandBuffer, kMaxConcurrentFrames> cmd_bufs_;

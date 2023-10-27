@@ -83,12 +83,10 @@ TEST(LightingTest, Shadow) {
     auto vert = std::make_shared<Shader>(Shader::create(ctx, TEST_RESOURCE_DIR + std::string("/shaders/light.vert.spv")));
     auto frag = std::make_shared<Shader>(Shader::create(ctx, TEST_RESOURCE_DIR + std::string("/shaders/light.frag.spv")));
     auto sphere_mat = std::make_shared<Material>();
-    sphere_mat->setFrontFace(VK_FRONT_FACE_COUNTER_CLOCKWISE);
     sphere_mat->setTexture(brown);
     sphere_mat->setVertexShader(vert);
     sphere_mat->setFragmentShader(frag);
     auto plane_mat = std::make_shared<Material>();
-    plane_mat->setFrontFace(VK_FRONT_FACE_COUNTER_CLOCKWISE);
     plane_mat->setTexture(white);
     plane_mat->setVertexShader(vert);
     plane_mat->setFragmentShader(frag);
@@ -97,16 +95,14 @@ TEST(LightingTest, Shadow) {
 
     Renderable plane_obj{ plane, plane_mat };
     plane_obj.transform.position.y = 1.5f;
+    plane_obj.transform.rotation = angleAxis(glm::radians(180.0f), Vec3(1, 0, 0));
     plane_obj.transform.scale = Vec3(4.0f);
 
     PerspectiveCamera camera(45.0f, swapchain.extent.width / (float)swapchain.extent.height, 0.1f, 10.0f);
     camera.transform.position.z = -5.0f;
-    // camera.transform.position = Vec3(0.0f, -5.0f, 5.0f);
-    // camera.transform.rotation = angleAxis(3.1415f / 3.0f, Vec3(-1, 0, 0));
     DirectionalLight light;
-    // light.transform.position.z = -5.0f;
-    light.transform.position = Vec3(0.0f, -5.0f, 5.0f);
-    light.transform.rotation = angleAxis(3.1415f / 3.0f, Vec3(-1, 0, 0));
+    light.transform.position = Vec3(0.0f, -5.0f, -5.0f);
+    light.transform.rotation = angleAxis(3.1415f / 4.0f, Vec3(-1, 0, 0));
 
     std::vector<Renderable> scene = { plane_obj, sphere_obj };
 

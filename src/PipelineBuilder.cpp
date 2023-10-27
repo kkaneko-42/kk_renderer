@@ -77,7 +77,7 @@ PipelineBuilder& PipelineBuilder::setDefault() {
     rasterizer_.polygonMode = VK_POLYGON_MODE_FILL;
     rasterizer_.lineWidth = 1.0f;
     rasterizer_.cullMode = VK_CULL_MODE_BACK_BIT;
-    rasterizer_.frontFace = VK_FRONT_FACE_CLOCKWISE;
+    rasterizer_.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
     rasterizer_.depthBiasEnable = VK_FALSE;
 
     multisampling_ = {};
