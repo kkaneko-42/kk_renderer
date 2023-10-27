@@ -113,12 +113,12 @@ static Quat angleAxis(float rad, const Vec3& axis) {
 static void handleCamera(GLFWwindow* window, Camera& camera) {
     const float translate_speed = 0.005f;
     const float rotate_speed = 0.001f;
-    static double prev_x = 0.0, prev_y = 0.0;
+    static float prev_x = 0.0, prev_y = 0.0;
 
     double x, y;
     glfwGetCursorPos(window, &x, &y);
-    const double diff_x = x - prev_x;
-    const double diff_y = y - prev_y;
+    const float diff_x = (float)x - prev_x;
+    const float diff_y = (float)y - prev_y;
 
     if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_3) == GLFW_PRESS) {
         // Wheel click
@@ -126,7 +126,7 @@ static void handleCamera(GLFWwindow* window, Camera& camera) {
     }
     else if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_2) == GLFW_PRESS) {
         // Right click
-        const Vec3 axis = Vec3(-diff_y, diff_x, 0);
+        const Vec3 axis = -diff_y * camera.transform.getRight() + -diff_x * camera.transform.getUp();
         camera.transform.rotation = angleAxis(rotate_speed, axis) * camera.transform.rotation;
     }
 

@@ -24,6 +24,10 @@ namespace kk {
             inline Vec3 getUp() const {
                 return rotation * Vec3(0, -1, 0);
             }
+
+            inline Vec3 getRight() const {
+                return rotation * Vec3(1, 0, 0);
+            }
         };
     }
 }
