@@ -79,6 +79,7 @@ TEST(LightingTest, Shadow) {
     // Prepare an object
     auto sphere = std::make_shared<Geometry>(Geometry::create(ctx, TEST_RESOURCE_DIR + std::string("/models/sphere.obj")));
     auto plane = std::make_shared<Geometry>(Geometry::create(ctx, TEST_RESOURCE_DIR + std::string("/models/plane.obj")));
+    auto cube = std::make_shared<Geometry>(Geometry::create(ctx, TEST_RESOURCE_DIR + std::string("/models/cube.obj")));
     auto brown = std::make_shared<Texture>(Texture::create(ctx, TEST_RESOURCE_DIR + std::string("/textures/brown.jpg")));
     auto white = std::make_shared<Texture>(Texture::create(ctx, TEST_RESOURCE_DIR + std::string("/textures/white.jpg")));
     auto vert = std::make_shared<Shader>(Shader::create(ctx, TEST_RESOURCE_DIR + std::string("/shaders/shadow_light.vert.spv")));
@@ -96,6 +97,11 @@ TEST(LightingTest, Shadow) {
     // sphere_obj.transform.position.x = 1.0f;
     // sphere_obj.transform.position.z = 2.0f;
 
+    Renderable sphere_2{ sphere, sphere_mat };
+    sphere_2.transform.position = Vec3(-1, -3, -4);
+
+    Renderable cube_obj{ cube, sphere_mat };
+
     Renderable plane_obj{ plane, plane_mat };
     plane_obj.transform.position.y = 1.5f;
     plane_obj.transform.rotation = angleAxis(glm::radians(180.0f), Vec3(1, 0, 0));
@@ -104,10 +110,10 @@ TEST(LightingTest, Shadow) {
     PerspectiveCamera camera(45.0f, swapchain.extent.width / (float)swapchain.extent.height, 0.1f, 100.0f);
     camera.transform.position.z = -5.0f;
     DirectionalLight light;
-    light.transform.position = Vec3(0.0f, -5.0f, -5.0f);
+    light.transform.position = Vec3(0.0f, -10.0f, -10.0f);
     light.transform.rotation = angleAxis(3.1415f / 4.0f, Vec3(-1, 0, 0));
 
-    std::vector<Renderable> scene = { plane_obj, sphere_obj };
+    std::vector<Renderable> scene = { plane_obj, sphere_obj, sphere_2, cube_obj };
 
     Renderer renderer = Renderer::create(ctx, swapchain);
     Editor editor;
@@ -116,7 +122,7 @@ TEST(LightingTest, Shadow) {
         window.pollEvents();
         if (renderer.beginFrame(ctx, swapchain)) {
             renderer.render(ctx, scene, light, camera, swapchain);
-            editor.update(renderer.getCmdBuf(), renderer.getFramebuf(), window.acquireHandle(), scene[1].transform, camera);
+            editor.update(renderer.getCmdBuf(), renderer.getFramebuf(), window.acquireHandle(), scene[3].transform, camera);
             renderer.endFrame(ctx, swapchain);
         }
     }

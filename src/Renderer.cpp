@@ -281,6 +281,7 @@ void Renderer::renderShadowMap(RenderingContext& ctx, std::vector<Renderable>& s
         light.transform.position + light.transform.getForward(),
         Vec3(0, -1, 0)
     );
+    // global_uniform.proj = glm::ortho<float>(-10, 10, -10, 10, -10, 20); // TODO: Set from outside
     global_uniform.proj = glm::ortho<float>(-10, 10, -10, 10, -10, 20); // TODO: Set from outside
     global_uniform.proj[1][1] *= -1;
     auto& current_global = shadow_global_uniforms_[current_frame_].first;
