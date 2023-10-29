@@ -10,8 +10,9 @@ set(SRCS
 	draw_texture_test.cpp
 	draw_model_test.cpp
 	editor_test.cpp
-]]
 	lighting_test.cpp
+]]
+	skybox_test.cpp
     runner.cpp
 )
 set(SHADERS_DIR ${kk_renderer_SOURCE_DIR}/resources/shaders)

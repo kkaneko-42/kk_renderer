@@ -29,7 +29,12 @@ namespace kk {
             // VkCommandBuffer beginSingleTimeCommandBuffer();
             // void endSingleTimeCommandBuffer(VkCommandBuffer cmd);
             void submitCmdsImmediate(std::function<void(VkCommandBuffer)> cmds_recorder);
-            void transitionImageLayout(VkImage image, VkFormat format, VkImageLayout old_layout, VkImageLayout new_layout);
+            void transitionImageLayout(
+                VkImage image,
+                VkFormat format,
+                VkImageLayout old_layout,
+                VkImageLayout new_layout
+            );
         };
     }
 }

@@ -9,6 +9,15 @@ namespace kk {
         // TODO: Use kk::renderer::Image
         struct Texture {
             static Texture create(RenderingContext& ctx, const std::string& path);
+            static Texture create(
+                RenderingContext& ctx,
+                const std::string& neg_x_path,
+                const std::string& pos_x_path,
+                const std::string& neg_y_path,
+                const std::string& pos_y_path,
+                const std::string& neg_z_path,
+                const std::string& pos_z_path
+            );
 
             static Texture create(
                 RenderingContext& ctx,
@@ -23,6 +32,7 @@ namespace kk {
                 VkImageAspectFlags aspect
             );
             void destroy(RenderingContext& ctx);
+            void transitionLayout(RenderingContext& ctx, VkImageLayout new_layout);
 
             VkImage image;
             VkDeviceMemory memory;
@@ -32,7 +42,9 @@ namespace kk {
             uint32_t width;
             uint32_t height;
             VkFormat format;
+            uint32_t array_layers;
             VkImageTiling tiling;
+            VkImageLayout layout;
             VkImageUsageFlags usage;
             VkMemoryPropertyFlags props;
             VkImageAspectFlags aspect;
