@@ -11,7 +11,8 @@
 - [x] .objを描画
 - [x] editorで.objのModel行列を操作する
 - [x] ライティング(phong shading)
-- [ ] シャドウマッピング
+- [x] シャドウマッピング
+- [ ] スカイボックス
 
 ## 改善
 - [ ] dynamic uniform buffer化
@@ -22,3 +23,4 @@
     - [ ] ボタン押下でリロード
 	- [ ] ファイル更新でリロード
 - [ ] Shader reflection
+- [ ] 影の品質
