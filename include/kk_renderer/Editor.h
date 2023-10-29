@@ -14,7 +14,7 @@ namespace kk {
 
             void init(RenderingContext& ctx, Window& window, const Swapchain& swapchain, const Renderer& renderer);
             void update(VkCommandBuffer cmd_buf, VkFramebuffer framebuffer, void* window, Transform& model, Camera& camera);
-            void terminate();
+            void terminate(RenderingContext& ctx);
 
         private:
             EditorImpl* impl_;

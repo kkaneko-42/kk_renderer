@@ -128,13 +128,14 @@ TEST(LightingTest, Shadow) {
     }
 
     vkDeviceWaitIdle(ctx.device);
-    editor.terminate();
+    editor.terminate(ctx);
     plane_mat->destroy(ctx);
     sphere_mat->destroy(ctx);
     frag->destroy(ctx);
     vert->destroy(ctx);
     brown->destroy(ctx);
     white->destroy(ctx);
+    cube->destroy(ctx);
     sphere->destroy(ctx);
     plane->destroy(ctx);
     renderer.destroy(ctx);

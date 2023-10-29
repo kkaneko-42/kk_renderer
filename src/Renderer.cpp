@@ -40,6 +40,16 @@ Renderer Renderer::create(RenderingContext& ctx, Swapchain& swapchain) {
 }
 
 void Renderer::destroy(RenderingContext& ctx) {
+    // Destroy shadow resources
+    for (auto& kvp : shadow_global_uniforms_) {
+        kvp.first.destroy(ctx);
+    }
+    vkDestroyFramebuffer(ctx.device, shadow_framebuffer_, nullptr);
+    vkDestroyPipeline(ctx.device, shadow_pipeline_, nullptr);
+    vkDestroyPipelineLayout(ctx.device, shadow_layout_, nullptr);
+    vkDestroyRenderPass(ctx.device, shadow_pass_, nullptr);
+    shadow_map_.destroy(ctx);
+
     for (auto& kvp : object_uniforms_) {
         for (size_t i = 0; i < kMaxConcurrentFrames; ++i) {
             kvp.second[i].first.destroy(ctx);

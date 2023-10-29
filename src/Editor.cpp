@@ -87,6 +87,10 @@ struct kk::renderer::EditorImpl {
         ImGui_ImplVulkan_RenderDrawData(draw_data, cmd_buf);
     }
 
+    void destroy(RenderingContext& ctx) {
+        vkDestroyRenderPass(ctx.device, render_pass_, nullptr);
+    }
+
     ImGuiContext* imgui_ctx;
     VkRenderPass render_pass_;
     VkExtent2D swapchain_extent_;
@@ -141,9 +145,10 @@ void Editor::update(VkCommandBuffer cmd_buf, VkFramebuffer framebuffer, void* wi
     impl_->endRender(cmd_buf);
 }
 
-void Editor::terminate() {
+void Editor::terminate(RenderingContext& ctx) {
     ImGui_ImplVulkan_Shutdown();
     ImGui_ImplGlfw_Shutdown();
+    impl_->destroy(ctx);
 }
 
 static VkRenderPass createRenderPass(RenderingContext& ctx, VkFormat swapchain_format /* TODO: remove swapchain_format */) {
