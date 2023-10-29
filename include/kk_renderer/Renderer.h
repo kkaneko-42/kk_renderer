@@ -58,7 +58,6 @@ namespace kk {
             void createDescriptors(RenderingContext& ctx);
             void createFramebuffers(RenderingContext& ctx, const Swapchain& swapchain);
             void createShadowResources(RenderingContext& ctx);
-            void setupView(const Camera& camera, const DirectionalLight& light);
             void prepareRendering(RenderingContext& ctx, Renderable& renderable);
 
             VkRenderPass render_pass_;

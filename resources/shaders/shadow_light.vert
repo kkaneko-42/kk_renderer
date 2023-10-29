@@ -35,5 +35,5 @@ void main() {
 	gl_Position = perView.proj * perView.view * perObject.model * vec4(inPos, 1.0);
 	outNorm = mat3(perView.view) * mat3(perObject.model) * inNorm;
 	outUV = inUV;
-	outPosOnShadowCoord = bias * perView.light_proj * perView.light_view * perObject.model * vec4(inPos, 1.0);
+	outPosOnShadowCoord = bias * perView.light_proj * perView.light_view * perObject.model * vec4(inPos + (0.1 * inNorm), 1.0);
 }
