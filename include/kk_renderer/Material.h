@@ -32,6 +32,10 @@ namespace kk {
                 rasterizer_.frontFace = front_face;
             }
 
+            inline void setDepthCompareOp(VkCompareOp op) {
+                depth_stencil_.depthCompareOp = op;
+            }
+
             inline std::shared_ptr<Texture> getTexture() const {
                 return texture_;
             }

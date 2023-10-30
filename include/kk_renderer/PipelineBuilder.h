@@ -29,6 +29,11 @@ namespace kk {
                 return *this;
             }
 
+            inline PipelineBuilder& setCullMode(VkCullModeFlags cull_mode) {
+                rasterizer_.cullMode = cull_mode;
+                return *this;
+            }
+
         private:
             std::shared_ptr<Shader> vert_, frag_;
             VkPipelineInputAssemblyStateCreateInfo input_asm_;
