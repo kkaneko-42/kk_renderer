@@ -14,6 +14,7 @@ TEST(SkyboxTest, CubmapCreation) {
     const std::string name = "lighting test";
     Window window = Window::create(size.first, size.second, name);
     RenderingContext ctx = RenderingContext::create();
+    Swapchain swapchain = Swapchain::create(ctx, window);
 
     Texture cubemap = Texture::create(
         ctx,
@@ -24,5 +25,13 @@ TEST(SkyboxTest, CubmapCreation) {
         TEST_RESOURCE_DIR + std::string("/textures/skybox/back.jpg"),
         TEST_RESOURCE_DIR + std::string("/textures/skybox/front.jpg")
     );
+
+    Renderer renderer = Renderer::create(ctx, swapchain);
+    while (true) {
+        renderer.beginFrame(ctx, swapchain);
+        renderer.endFrame(ctx, swapchain);
+    }
+
     cubemap.destroy(ctx);
+    ctx.destroy();
 }

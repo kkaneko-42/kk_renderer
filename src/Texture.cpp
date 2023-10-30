@@ -66,9 +66,11 @@ Texture Texture::create(
         y = loaded_y;
         ch = loaded_ch;
 
-        for (size_t i = 0; i < static_cast<size_t>(x * y); ++i) {
+        for (size_t i = 0; i < static_cast<size_t>(x * y * 4); ++i) {
             texels.push_back(result[i]);
         }
+
+        stbi_image_free(result);
     }
 
     Texture texture{};
@@ -114,12 +116,12 @@ Texture Texture::create(
     for (uint32_t face = 0; face < 6; ++face) {
         VkBufferImageCopy region{};
         region.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-        region.imageSubresource.mipLevel = 1;
         region.imageSubresource.baseArrayLayer = face;
         region.imageSubresource.layerCount = 1;
         region.imageExtent.width = texture.width;
         region.imageExtent.height = texture.height;
         region.imageExtent.depth = 1;
+        region.bufferOffset = static_cast<VkDeviceSize>(face * texture.width * texture.height * 4);
         regions[face] = region;
     }
 
@@ -137,7 +139,7 @@ Texture Texture::create(
             cmd_buf,
             staging.buffer,
             texture.image,
-            VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+            texture.layout,
             static_cast<uint32_t>(regions.size()),
             regions.data()
         );
