@@ -29,31 +29,35 @@ layout(location = 0) out vec4 outColor;
 // TODO: uniform
 const vec3 ambientColor = vec3(1.0);
 const float ambientStrength = 0.3;
-const float specularStrength = 0.5;
+
+float CalcShadow() {
+	float closestDepth = texture(shadowSampler, inPosOnShadowCoord.xy).r;
+	float currentDepth = inPosOnShadowCoord.z;
+	return (currentDepth > closestDepth) ? 0.5 : 1.0;
+}
 
 void main() {
-	// Calc in camera space
+	// NOTE: Calc in camera space
 	vec3 normal = normalize(inNorm);
 	vec3 lightDir = normalize(mat3(perView.view) * perView.light_dir);
 	vec3 lightReflectDir = reflect(lightDir, normal);
 	vec3 cameraDir = vec3(0, 0, 1.0);
 
+	// Ambient
 	vec3 ambient = ambientStrength * ambientColor;
-	vec3 diffuse = max(-dot(normal, lightDir), ambientStrength) * perView.light_color;
-	vec3 specular = specularStrength * pow(max(dot(cameraDir, lightReflectDir), 0.0), 32) * perView.light_color;
-
-	float bias = 0.005 * tan(acos(dot(normal, lightDir)));
-	bias = clamp(bias, 0, 0.01);
-	float visibility = 1.0;
-	if (texture(shadowSampler, inPosOnShadowCoord.xy).r < inPosOnShadowCoord.z + bias) {
-		visibility = 0.5;
-	}
-
-	outColor = texture(texSampler, inUV) * (
-		vec4(ambient, 1.0) +
-		visibility * vec4(diffuse, 1.0) +
-		visibility * vec4(specular, 1.0)
-	);
-
-	// visibility * vec4((ambient + diffuse + specular), 1.0) * texture(texSampler, inUV);
+	
+	// Diffuse
+	float diff = max(-dot(normal, lightDir), 0.0);
+	vec3 diffuse = diff * perView.light_color;
+	
+	// Specular
+	float spec = pow(max(dot(cameraDir, lightReflectDir), 0.0), 32);
+	vec3 specular = spec * perView.light_color;
+	
+	// Shadow
+	float shadow = CalcShadow();
+	
+	vec3 color = texture(texSampler, inUV).rgb;
+	vec3 lighting = (ambient + shadow * (diffuse + specular)) * color;
+	outColor = vec4(lighting, 1.0);
 }
