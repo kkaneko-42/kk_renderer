@@ -11,6 +11,6 @@ layout(location = 0) out vec3 outUV;
 
 void main() {
 	outUV = inPos;
-	outUV.xy *= -1;
+	outUV.y *= -1;
 	gl_Position	= (perView.proj * mat4(mat3(perView.view)) * vec4(inPos, 1.0)).xyww; 
 }
