@@ -428,15 +428,17 @@ static VkCommandPool createCommandPool(VkDevice device, uint32_t dst_queue_famil
 }
 
 static VkDescriptorPool createDescPool(VkDevice device) {
-    VkDescriptorPoolSize pool_sizes{};
-    pool_sizes.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    pool_sizes.descriptorCount = static_cast<uint32_t>(kMaxConcurrentFrames) * 256;
+    std::array<VkDescriptorPoolSize, 2> pool_sizes{};
+    pool_sizes[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    pool_sizes[0].descriptorCount = static_cast<uint32_t>(kMaxConcurrentFrames) * 256;
+    pool_sizes[1].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    pool_sizes[1].descriptorCount = pool_sizes[0].descriptorCount;
 
     VkDescriptorPoolCreateInfo info{};
     info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
     info.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
-    info.poolSizeCount = 1;
-    info.pPoolSizes = &pool_sizes;
+    info.poolSizeCount = static_cast<uint32_t>(pool_sizes.size());
+    info.pPoolSizes = pool_sizes.data();
     info.maxSets = static_cast<uint32_t>(kMaxConcurrentFrames) * 256; // TODO: Set max number of objects
 
     VkDescriptorPool pool;

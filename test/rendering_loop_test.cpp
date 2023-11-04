@@ -35,7 +35,6 @@ TEST(RenderingLoopTest, ContextCreation) {
     window->terminate();
 }
 
-/*
 TEST(RenderingLoopTest, RendererCreation) {
     WindowPtr window = std::make_unique<GlfwWindow>(800, 800, "ctx creation");
     window->launch();
@@ -47,7 +46,7 @@ TEST(RenderingLoopTest, RendererCreation) {
     ctx.destroy();
     window->terminate();
 }
-
+/*
 TEST(RenderingLoopTest, RenderingLoop) {
     const std::pair<size_t, size_t> size = { 800, 800 };
     const std::string name = "rendering loop test";
