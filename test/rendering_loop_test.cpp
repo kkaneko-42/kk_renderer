@@ -42,30 +42,27 @@ TEST(RenderingLoopTest, RendererCreation) {
 
     Renderer renderer = Renderer::create(ctx);
 
+    vkDeviceWaitIdle(ctx.device);
     renderer.destroy(ctx);
     ctx.destroy();
     window->terminate();
 }
-/*
-TEST(RenderingLoopTest, RenderingLoop) {
-    const std::pair<size_t, size_t> size = { 800, 800 };
-    const std::string name = "rendering loop test";
-    Window window = Window::create(size.first, size.second, name);
-    RenderingContext ctx = RenderingContext::create();
-    Swapchain swapchain = Swapchain::create(ctx, window);
 
-    Renderer renderer = Renderer::create(ctx, swapchain);
-    while (!window.isClosed()) {
-        window.pollEvents();
-        if (renderer.beginFrame(ctx, swapchain)) {
-            renderer.endFrame(ctx, swapchain);
+TEST(RenderingLoopTest, RenderingLoop) {
+    WindowPtr window = std::make_unique<GlfwWindow>(800, 800, "ctx creation");
+    window->launch();
+    RenderingContext ctx = RenderingContext::create(window);
+    Renderer renderer = Renderer::create(ctx);
+
+    while (!window->hasError()) {
+        window->pollEvents();
+        if (renderer.beginFrame(ctx)) {
+            renderer.endFrame(ctx);
         }
     }
 
     vkDeviceWaitIdle(ctx.device);
     renderer.destroy(ctx);
-    swapchain.destroy(ctx);
     ctx.destroy();
-    window.destroy();
+    window->terminate();
 }
-*/

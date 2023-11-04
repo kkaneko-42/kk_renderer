@@ -12,7 +12,7 @@ namespace kk {
         public:
             Editor();
 
-            void init(RenderingContext& ctx, Window& window, const Swapchain& swapchain, const Renderer& renderer);
+            void init(RenderingContext& ctx, const WindowPtr& window);
             void update(VkCommandBuffer cmd_buf, VkFramebuffer framebuffer, void* window, Transform& model, Camera& camera);
             void terminate(RenderingContext& ctx);
 

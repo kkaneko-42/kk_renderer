@@ -1,6 +1,7 @@
 #include <gtest/gtest.h>
 #include <glm/gtx/string_cast.hpp>
 #include "kk_renderer/kk_renderer.h"
+#include "kk_renderer/platform/GlfwWindow.h"
 #include "kk_renderer/Editor.h"
 #ifndef TEST_RESOURCE_DIR
 #define TEST_RESOURCE_DIR "./resources"
@@ -70,11 +71,10 @@ TEST(LightingTest, Lighting) {
 */
 
 TEST(LightingTest, Shadow) {
-    const std::pair<size_t, size_t> size = { 800, 800 };
-    const std::string name = "lighting test";
-    Window window = Window::create(size.first, size.second, name);
-    RenderingContext ctx = RenderingContext::create();
-    Swapchain swapchain = Swapchain::create(ctx, window);
+    WindowPtr window = std::make_unique<GlfwWindow>(800, 800, "ctx creation");
+    window->launch();
+    RenderingContext ctx = RenderingContext::create(window);
+    Renderer renderer = Renderer::create(ctx);
 
     // Prepare an object
     auto sphere = std::make_shared<Geometry>(Geometry::create(ctx, TEST_RESOURCE_DIR + std::string("/models/sphere.obj")));
@@ -107,7 +107,7 @@ TEST(LightingTest, Shadow) {
     plane_obj.transform.rotation = angleAxis(glm::radians(180.0f), Vec3(1, 0, 0));
     plane_obj.transform.scale = Vec3(4.0f);
 
-    PerspectiveCamera camera(45.0f, swapchain.extent.width / (float)swapchain.extent.height, 0.1f, 100.0f);
+    PerspectiveCamera camera(45.0f, ctx.swapchain.extent.width / (float)ctx.swapchain.extent.height, 0.1f, 100.0f);
     camera.transform.position.z = -5.0f;
     DirectionalLight light;
     light.transform.position = Vec3(0.0f, -10.0f, -10.0f);
@@ -115,15 +115,14 @@ TEST(LightingTest, Shadow) {
 
     std::vector<Renderable> scene = { plane_obj, sphere_obj, sphere_2, cube_obj };
 
-    Renderer renderer = Renderer::create(ctx, swapchain);
     Editor editor;
-    editor.init(ctx, window, swapchain, renderer);
-    while (!window.isClosed()) {
-        window.pollEvents();
-        if (renderer.beginFrame(ctx, swapchain)) {
-            renderer.render(ctx, scene, light, camera, swapchain);
-            editor.update(renderer.getCmdBuf(), renderer.getFramebuf(), window.acquireHandle(), scene[3].transform, camera);
-            renderer.endFrame(ctx, swapchain);
+    editor.init(ctx, window);
+    while (!window->hasError()) {
+        window->pollEvents();
+        if (renderer.beginFrame(ctx)) {
+            renderer.render(ctx, scene, light, camera);
+            editor.update(renderer.getCmdBuf(), renderer.getFramebuf(), window->acquireHandle(), scene[3].transform, camera);
+            renderer.endFrame(ctx);
         }
     }
 
@@ -139,7 +138,6 @@ TEST(LightingTest, Shadow) {
     sphere->destroy(ctx);
     plane->destroy(ctx);
     renderer.destroy(ctx);
-    swapchain.destroy(ctx);
     ctx.destroy();
-    window.destroy();
+    window->terminate();
 }

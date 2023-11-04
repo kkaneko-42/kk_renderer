@@ -14,12 +14,12 @@ using namespace kk::renderer;
 static VkRenderPass createRenderPass(RenderingContext& ctx, VkFormat swapchain_format /* TODO: remove swapchain_format */);
 
 struct kk::renderer::EditorImpl {
-    void init(RenderingContext& ctx, Window& window, const Swapchain& swapchain, const Renderer& renderer) {
-        swapchain_extent_ = swapchain.extent;
+    void init(RenderingContext& ctx, const WindowPtr& window) {
+        swapchain_extent_ = ctx.swapchain.extent;
 
         imgui_ctx = ImGui::CreateContext();
         ImGui::SetCurrentContext(imgui_ctx);
-        ImGui_ImplGlfw_InitForVulkan(static_cast<GLFWwindow*>(window.acquireHandle()), true);
+        ImGui_ImplGlfw_InitForVulkan(static_cast<GLFWwindow*>(window->acquireHandle()), true);
         ImGui::StyleColorsDark();
 
         ImGui_ImplVulkan_InitInfo info{};
@@ -32,10 +32,10 @@ struct kk::renderer::EditorImpl {
         info.DescriptorPool = ctx.desc_pool;
         info.Allocator = VK_NULL_HANDLE;
         info.MinImageCount = 2;
-        info.ImageCount = static_cast<uint32_t>(swapchain.images.size()); // TODO: get from swapchain
+        info.ImageCount = static_cast<uint32_t>(ctx.swapchain.images.size());
         info.CheckVkResultFn = VK_NULL_HANDLE;
 
-        render_pass_ = createRenderPass(ctx, swapchain.format.format);
+        render_pass_ = createRenderPass(ctx, ctx.swapchain.format.format);
         ImGui_ImplVulkan_Init(&info, render_pass_);
     }
 
@@ -100,8 +100,8 @@ Editor::Editor() {
     impl_ = new EditorImpl();
 }
 
-void Editor::init(RenderingContext& ctx, Window& window, const Swapchain& swapchain, const Renderer& renderer) {
-    impl_->init(ctx, window, swapchain, renderer);
+void Editor::init(RenderingContext& ctx, const WindowPtr& window) {
+    impl_->init(ctx, window);
     impl_->uploadFonts(ctx);
 }
 
