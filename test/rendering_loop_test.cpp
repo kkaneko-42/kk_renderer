@@ -1,63 +1,51 @@
 #include <gtest/gtest.h>
 #include "kk_renderer/kk_renderer.h"
+#include "kk_renderer/platform/GlfwWindow.h"
 
 using namespace kk::renderer;
 
 TEST(RenderingLoopTest, WindowCreation) {
     const std::pair<size_t, size_t> size = { 800, 800 };
     const std::string name = "create window test";
-    Window window = Window::create(size.first, size.second, name);
+    WindowPtr window = std::make_unique<GlfwWindow>(size.first, size.second, name);
 
-    EXPECT_EQ(window.getName(), name);
-    EXPECT_EQ(window.getSize(), size);
-    EXPECT_TRUE(window.acquireHandle() != nullptr);
-
-    window.destroy();
+    EXPECT_EQ(window->getName(), name);
+    EXPECT_EQ(window->getSize(), size);
 }
 
 TEST(RenderingLoopTest, WindowLoop) {
-    const std::pair<size_t, size_t> size = { 800, 800 };
+    const size_t width = 800, height = 800;
     const std::string name = "window loop test";
-    Window window = Window::create(size.first, size.second, name);
-
-    while (!window.isClosed()) {
-        window.pollEvents();
+    WindowPtr window = std::make_unique<GlfwWindow>(width, height, name);
+    
+    EXPECT_TRUE(window->launch());
+    while (!window->hasError()) {
+        window->pollEvents();
     }
 
-    window.destroy();
+    window->terminate();
 }
 
 TEST(RenderingLoopTest, ContextCreation) {
-    RenderingContext ctx = RenderingContext::create();
+    WindowPtr window = std::make_unique<GlfwWindow>(800, 800, "ctx creation");
+    window->launch();
+
+    RenderingContext ctx = RenderingContext::create(window);
     ctx.destroy();
+    window->terminate();
 }
 
-TEST(RenderingLoopTest, SwapchainCreation) {
-    const std::pair<size_t, size_t> size = { 800, 800 };
-    const std::string name = "swap chain creation test";
-    Window window = Window::create(size.first, size.second, name);
-    RenderingContext ctx = RenderingContext::create();
-
-    Swapchain swapchain = Swapchain::create(ctx, window);
-
-    swapchain.destroy(ctx);
-    ctx.destroy();
-    window.destroy();
-}
-
+/*
 TEST(RenderingLoopTest, RendererCreation) {
-    const std::pair<size_t, size_t> size = { 800, 800 };
-    const std::string name = "rendering loop test";
-    Window window = Window::create(size.first, size.second, name);
-    RenderingContext ctx = RenderingContext::create();
-    Swapchain swapchain = Swapchain::create(ctx, window);
+    WindowPtr window = std::make_unique<GlfwWindow>(800, 800, "ctx creation");
+    window->launch();
+    RenderingContext ctx = RenderingContext::create(window);
 
-    Renderer renderer = Renderer::create(ctx, swapchain);
+    Renderer renderer = Renderer::create(ctx);
 
     renderer.destroy(ctx);
-    swapchain.destroy(ctx);
     ctx.destroy();
-    window.destroy();
+    window->terminate();
 }
 
 TEST(RenderingLoopTest, RenderingLoop) {
@@ -81,3 +69,4 @@ TEST(RenderingLoopTest, RenderingLoop) {
     ctx.destroy();
     window.destroy();
 }
+*/

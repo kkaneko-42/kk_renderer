@@ -6,6 +6,7 @@
 
 namespace kk {
     namespace renderer {
+        /*
         struct Swapchain {
             static Swapchain create(RenderingContext& ctx, Window& window);
             void destroy(RenderingContext& ctx);
@@ -20,5 +21,6 @@ namespace kk {
             std::vector<VkImageView> views;
             VkSwapchainKHR swapchain;
         };
+        */
     }
 }

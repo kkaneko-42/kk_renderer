@@ -4,6 +4,7 @@
 #include <set>
 #include <cassert>
 #include <functional>
+#include <limits>
 
 using namespace kk::renderer;
 
@@ -12,20 +13,22 @@ static VkInstance createInstance(
     const std::vector<const char*>& layers
 );
 static VkDebugUtilsMessengerEXT createDebugMessenger(VkInstance instance);
-static VkPhysicalDevice pickGPU(VkInstance instance, const std::vector<const char*>& exts);
+static VkPhysicalDevice pickGPU(VkInstance instance, const std::vector<const char*>& exts, VkSurfaceKHR surface);
 static VkDevice createLogicalDevice(VkPhysicalDevice gpu, const std::vector<const char*>& exts, const std::set<uint32_t>& families);
-static uint32_t findQueueFamily(
+static bool findQueueFamily(
     VkPhysicalDevice device,
-    std::function<bool(uint32_t, const VkQueueFamilyProperties&)> cond
+    std::function<bool(uint32_t, const VkQueueFamilyProperties&)> cond,
+    uint32_t* family
 );
 static VkQueue getQueue(VkDevice device, uint32_t family);
+static Swapchain createSwapchain(RenderingContext& ctx, VkExtent2D window_extent);
 static VkCommandPool createCommandPool(VkDevice device, uint32_t dst_queue_family);
 static VkDescriptorPool createDescPool(VkDevice device);
 static std::array<VkFence, kMaxConcurrentFrames> createFences(VkDevice device);
 static std::array<VkSemaphore, kMaxConcurrentFrames> createSemaphores(VkDevice device);
 
-RenderingContext RenderingContext::create() {
-    std::vector<const char*> instance_exts = Window::getRequiredExtensions();
+RenderingContext RenderingContext::create(const WindowPtr& window) {
+    std::vector<const char*> instance_exts = window->getRequiredExtensions();
     instance_exts.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
     const std::vector<const char*> layers = {
         "VK_LAYER_KHRONOS_validation",
@@ -37,14 +40,27 @@ RenderingContext RenderingContext::create() {
     RenderingContext ctx{};
     ctx.instance = createInstance(instance_exts, layers);
     ctx.debug_messenger = createDebugMessenger(ctx.instance);
-    ctx.gpu = pickGPU(ctx.instance, device_exts);
-    ctx.graphics_family = findQueueFamily(ctx.gpu, [](uint32_t i, const VkQueueFamilyProperties& prop) {
-        return (prop.queueFlags & VK_QUEUE_GRAPHICS_BIT);
-    });
-    ctx.present_family = ctx.graphics_family; // CONCERN
+    ctx.surface = window->createSurface(ctx.instance);
+    ctx.gpu = pickGPU(ctx.instance, device_exts, ctx.surface);
+    findQueueFamily(
+        ctx.gpu,
+        [](uint32_t i, const VkQueueFamilyProperties& prop){ return (prop.queueFlags & VK_QUEUE_GRAPHICS_BIT); },
+        &ctx.graphics_family
+    );
+    findQueueFamily(
+        ctx.gpu,
+        [&ctx](uint32_t family, const VkQueueFamilyProperties& props) {
+            VkBool32 is_supported = VK_FALSE;
+            vkGetPhysicalDeviceSurfaceSupportKHR(ctx.gpu, family, ctx.surface, &is_supported);
+            return is_supported;
+        },
+        &ctx.present_family
+    );
     ctx.device = createLogicalDevice(ctx.gpu, device_exts, { ctx.graphics_family, ctx.present_family });
     ctx.graphics_queue = getQueue(ctx.device, ctx.graphics_family);
     ctx.present_queue = getQueue(ctx.device, ctx.present_family);
+    const VkExtent2D window_extent = { static_cast<uint32_t>(window->getSize().first), static_cast<uint32_t>(window->getSize().second) };
+    ctx.swapchain = createSwapchain(ctx, window_extent);
     ctx.cmd_pool = createCommandPool(ctx.device, ctx.graphics_family);
     ctx.desc_pool = createDescPool(ctx.device);
     ctx.fences = createFences(ctx.device);
@@ -65,11 +81,18 @@ void RenderingContext::destroy() {
 
     vkDestroyDescriptorPool(device, desc_pool, nullptr);
     vkDestroyCommandPool(device, cmd_pool, nullptr);
+
+    for (auto& view : swapchain.views) {
+        vkDestroyImageView(device, view, nullptr);
+    }
+    vkDestroySwapchainKHR(device, swapchain.swapchain, nullptr);
+
     vkDestroyDevice(device, nullptr);
     auto destroyer = (PFN_vkDestroyDebugUtilsMessengerEXT)vkGetInstanceProcAddr(instance, "vkDestroyDebugUtilsMessengerEXT");
     if (destroyer != nullptr) {
         destroyer(instance, debug_messenger, nullptr);
     }
+    vkDestroySurfaceKHR(instance, surface, nullptr);
     vkDestroyInstance(instance, nullptr);
 }
 
@@ -163,7 +186,29 @@ static bool isExtensionsSupported(VkPhysicalDevice gpu, const std::vector<const 
     return exts_unsupported.empty();
 }
 
-static VkPhysicalDevice pickGPU(VkInstance instance, const std::vector<const char*>& exts) {
+Swapchain::SupportInfo Swapchain::SupportInfo::query(VkPhysicalDevice gpu, VkSurfaceKHR surface) {
+    Swapchain::SupportInfo availables;
+
+    vkGetPhysicalDeviceSurfaceCapabilitiesKHR(gpu, surface, &availables.caps);
+
+    uint32_t format_count = 0;
+    vkGetPhysicalDeviceSurfaceFormatsKHR(gpu, surface, &format_count, nullptr);
+    if (format_count != 0) {
+        availables.formats.resize(format_count);
+        vkGetPhysicalDeviceSurfaceFormatsKHR(gpu, surface, &format_count, availables.formats.data());
+    }
+
+    uint32_t mode_count = 0;
+    vkGetPhysicalDeviceSurfacePresentModesKHR(gpu, surface, &mode_count, nullptr);
+    if (mode_count != 0) {
+        availables.present_modes.resize(mode_count);
+        vkGetPhysicalDeviceSurfacePresentModesKHR(gpu, surface, &mode_count, availables.present_modes.data());
+    }
+
+    return availables;
+}
+
+static VkPhysicalDevice pickGPU(VkInstance instance, const std::vector<const char*>& exts, VkSurfaceKHR surface) {
     uint32_t device_count = 0;
     vkEnumeratePhysicalDevices(instance, &device_count, nullptr);
 
@@ -171,7 +216,35 @@ static VkPhysicalDevice pickGPU(VkInstance instance, const std::vector<const cha
     vkEnumeratePhysicalDevices(instance, &device_count, devices.data());
 
     for (const auto& gpu : devices) {
-        if (isExtensionsSupported(gpu, exts)) {
+        const bool is_graphics_supported = findQueueFamily(
+            gpu,
+            [](uint32_t, const  VkQueueFamilyProperties& props) {
+                return (props.queueFlags & VK_QUEUE_GRAPHICS_BIT);
+            },
+            nullptr
+        );
+
+        const bool is_present_supported = findQueueFamily(
+            gpu,
+            [gpu, surface](uint32_t family, const  VkQueueFamilyProperties& props) {
+                VkBool32 is_supported = VK_FALSE;
+                vkGetPhysicalDeviceSurfaceSupportKHR(gpu, family, surface, &is_supported);
+                return is_supported;
+            },
+            nullptr
+        );
+
+        const Swapchain::SupportInfo swapchain_support = Swapchain::SupportInfo::query(gpu, surface);
+        const bool is_swapchain_supported = (
+            swapchain_support.formats.size() != 0 &&
+            swapchain_support.present_modes.size() != 0
+        );
+
+        if (isExtensionsSupported(gpu, exts) &&
+            is_graphics_supported &&
+            is_present_supported &&
+            is_swapchain_supported
+        ) {
             return gpu;
         }
     }
@@ -180,9 +253,10 @@ static VkPhysicalDevice pickGPU(VkInstance instance, const std::vector<const cha
     return VK_NULL_HANDLE;
 }
 
-static uint32_t findQueueFamily(
+static bool findQueueFamily(
     VkPhysicalDevice device,
-    std::function<bool(uint32_t, const VkQueueFamilyProperties&)> cond
+    std::function<bool(uint32_t, const VkQueueFamilyProperties&)> cond,
+    uint32_t* family
 ) {
     uint32_t family_count = 0;
     vkGetPhysicalDeviceQueueFamilyProperties(device, &family_count, nullptr);
@@ -191,12 +265,16 @@ static uint32_t findQueueFamily(
 
     for (uint32_t i = 0; i < families.size(); ++i) {
         if (cond(i, families[i])) {
-            return i;
+            // Required queue family found
+            if (family != nullptr) {
+                *family = i;
+            }
+            return true;
         }
     }
 
-    assert(false && "Device queue required is unsupported");
-    return UINT32_MAX;
+    // Queue family not found
+    return false;
 }
 
 static VkDevice createLogicalDevice(VkPhysicalDevice gpu, const std::vector<const char*>& exts, const std::set<uint32_t>& families) {
@@ -232,6 +310,110 @@ static VkQueue getQueue(VkDevice device, uint32_t family) {
     VkQueue queue;
     vkGetDeviceQueue(device, family, 0, &queue);
     return queue;
+}
+
+template <class T>
+constexpr const T& clamp(const T& v, const T& low, const T& high) {
+    return ((v < low) ? low : (v > high) ? high : v);
+}
+
+static void configureSwapchainSettings(VkPhysicalDevice gpu, VkSurfaceKHR surface, VkExtent2D window_extent, Swapchain& swapchain) {
+    swapchain.availables = Swapchain::SupportInfo::query(gpu, surface);
+    const auto& caps = swapchain.availables.caps;
+    const auto& formats = swapchain.availables.formats;
+    const auto& modes = swapchain.availables.present_modes;
+
+    // Configure format
+    swapchain.format = formats[0];
+    for (const auto& format : formats) {
+        if (format.format == VK_FORMAT_B8G8R8A8_SRGB &&
+            format.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR
+        ) {
+            swapchain.format = format;
+            break;
+        }
+    }
+
+    // Configure present mode
+    swapchain.present_mode = modes[0];
+    for (const auto& mode : modes) {
+        if (mode == VK_PRESENT_MODE_MAILBOX_KHR) {
+            swapchain.present_mode = mode;
+            break;
+        }
+    }
+
+    // Configure extent
+    if (swapchain.extent.width != std::numeric_limits<uint32_t>::max()) {
+        swapchain.extent = caps.currentExtent;
+    } else {
+        swapchain.extent.width = clamp(
+            window_extent.width,
+            caps.minImageExtent.width,
+            caps.maxImageExtent.width
+        );
+        swapchain.extent.height = clamp(
+            window_extent.height,
+            caps.minImageExtent.height,
+            caps.maxImageExtent.height
+        );
+    }
+
+    // Configure image count
+    uint32_t min_img_count = caps.minImageCount + 1;
+    if (caps.maxImageCount > 0 &&
+        min_img_count > caps.maxImageCount
+    ) {
+        min_img_count = caps.maxImageCount;
+    }
+    swapchain.images.resize(min_img_count);
+
+    // Configure pre transform
+    swapchain.pre_transform = caps.currentTransform;
+}
+
+static Swapchain createSwapchain(RenderingContext& ctx, VkExtent2D window_extent) {
+    Swapchain swapchain;
+    configureSwapchainSettings(ctx.gpu, ctx.surface, window_extent, swapchain);
+
+    VkSwapchainCreateInfoKHR info{};
+    info.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
+    info.surface = ctx.surface;
+    info.minImageCount = static_cast<uint32_t>(swapchain.images.size());
+    info.imageFormat = swapchain.format.format;
+    info.imageColorSpace = swapchain.format.colorSpace;
+    info.imageExtent = swapchain.extent;
+    info.imageArrayLayers = 1;
+    info.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+
+    const std::vector<uint32_t> families = { ctx.graphics_family, ctx.present_family };
+    if (ctx.graphics_family == ctx.present_family) {
+        info.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
+    }
+    else {
+        info.imageSharingMode = VK_SHARING_MODE_CONCURRENT;
+        info.queueFamilyIndexCount = static_cast<uint32_t>(families.size());
+        info.pQueueFamilyIndices = families.data();
+    }
+
+    info.preTransform = swapchain.pre_transform;
+    info.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
+    info.presentMode = swapchain.present_mode;
+    info.clipped = VK_TRUE;
+
+    assert(vkCreateSwapchainKHR(ctx.device, &info, nullptr, &swapchain.swapchain) == VK_SUCCESS);
+
+    uint32_t img_count = 0;
+    vkGetSwapchainImagesKHR(ctx.device, swapchain.swapchain, &img_count, nullptr);
+    swapchain.images.resize(img_count);
+    vkGetSwapchainImagesKHR(ctx.device, swapchain.swapchain, &img_count, swapchain.images.data());
+
+    swapchain.views.resize(img_count);
+    for (uint32_t i = 0; i < img_count; ++i) {
+        swapchain.views[i] = ctx.createImageView(swapchain.images[i], swapchain.format.format, VK_IMAGE_ASPECT_COLOR_BIT);
+    }
+
+    return swapchain;
 }
 
 static VkCommandPool createCommandPool(VkDevice device, uint32_t dst_queue_family) {
@@ -306,39 +488,6 @@ VkImageView RenderingContext::createImageView(VkImage image, VkFormat format, Vk
 
     return imageView;
 }
-
-/*
-VkCommandBuffer RenderingContext::beginSingleTimeCommandBuffer() {
-    VkCommandBufferAllocateInfo alloc_info{};
-    alloc_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-    alloc_info.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-    alloc_info.commandPool = cmd_pool;
-    alloc_info.commandBufferCount = 1;
-
-    VkCommandBuffer cmd_buf;
-    vkAllocateCommandBuffers(device, &alloc_info, &cmd_buf);
-
-    VkCommandBufferBeginInfo begin_info{};
-    begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-    begin_info.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
-    vkBeginCommandBuffer(cmd_buf, &begin_info);
-
-    return cmd_buf;
-}
-
-void RenderingContext::endSingleTimeCommandBuffer(VkCommandBuffer cmd_buf) {
-    vkEndCommandBuffer(cmd_buf);
-
-    VkSubmitInfo submit_info{};
-    submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-    submit_info.commandBufferCount = 1;
-    submit_info.pCommandBuffers = &cmd_buf;
-    vkQueueSubmit(graphics_queue, 1, &submit_info, VK_NULL_HANDLE);
-    vkQueueWaitIdle(graphics_queue);
-
-    vkFreeCommandBuffers(device, cmd_pool, 1, &cmd_buf);
-}
-*/
 
 void RenderingContext::submitCmdsImmediate(std::function<void(VkCommandBuffer)> cmds_recorder) {
     // Create command buffer

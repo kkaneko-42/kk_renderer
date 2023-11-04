@@ -35,7 +35,7 @@ struct kk::renderer::EditorImpl {
         info.ImageCount = static_cast<uint32_t>(swapchain.images.size()); // TODO: get from swapchain
         info.CheckVkResultFn = VK_NULL_HANDLE;
 
-        render_pass_ = createRenderPass(ctx, swapchain.surface_format.format);
+        render_pass_ = createRenderPass(ctx, swapchain.format.format);
         ImGui_ImplVulkan_Init(&info, render_pass_);
     }
 

@@ -4,7 +4,6 @@ cmake_minimum_required(VERSION 3.10)
 set(CMAKE_CXX_STANDARD 11)
 set(SRCS
     src/RenderingContext.cpp
-    src/Window.cpp
     src/Swapchain.cpp
 	src/Renderer.cpp
 	src/Texture.cpp
@@ -20,6 +19,8 @@ set(SRCS
 	src/Image.cpp
 	src/Editor.cpp
 	src/PipelineBuilder.cpp
+
+    src/platform/GlfwWindow.cpp
 
 	external/imgui/src/imgui.cpp
 	external/imgui/src/imgui_impl_glfw.cpp

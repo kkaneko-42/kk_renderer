@@ -16,7 +16,7 @@ static VkRenderPass createRenderPass(RenderingContext& ctx, VkFormat swapchain_f
 static Texture createShadowMap(RenderingContext& ctx, VkExtent2D extent);
 static Image createDepthImage(RenderingContext& ctx, VkExtent2D extent);
 
-Renderer Renderer::create(RenderingContext& ctx, Swapchain& swapchain) {
+Renderer Renderer::create(RenderingContext& ctx) {
     Renderer renderer{};
     renderer.current_frame_ = renderer.img_idx_ = 0;
     
@@ -32,9 +32,9 @@ Renderer Renderer::create(RenderingContext& ctx, Swapchain& swapchain) {
     renderer.shadow_map_ = createShadowMap(ctx, VkExtent2D{ 1024, 1024 });
     renderer.createDescriptors(ctx);
     renderer.createShadowResources(ctx);
-    renderer.render_pass_ = createRenderPass(ctx, swapchain.surface_format.format);
-    renderer.depth_ = createDepthImage(ctx, swapchain.extent);
-    renderer.createFramebuffers(ctx, swapchain);
+    renderer.render_pass_ = createRenderPass(ctx, ctx.swapchain.format.format);
+    renderer.depth_ = createDepthImage(ctx, ctx.swapchain.extent);
+    renderer.createFramebuffers(ctx, ctx.swapchain);
 
     return renderer;
 }
@@ -78,13 +78,13 @@ void Renderer::destroy(RenderingContext& ctx) {
     );
 }
 
-bool Renderer::beginFrame(RenderingContext& ctx, Swapchain& swapchain) {
+bool Renderer::beginFrame(RenderingContext& ctx) {
     VkResult ret = vkWaitForFences(ctx.device, 1, &ctx.fences[current_frame_], VK_TRUE, UINT64_MAX);
     if (ret != VK_SUCCESS) {
         return false;
     }
 
-    ret = vkAcquireNextImageKHR(ctx.device, swapchain.swapchain, UINT64_MAX, ctx.present_complete[current_frame_], VK_NULL_HANDLE, &img_idx_);
+    ret = vkAcquireNextImageKHR(ctx.device, ctx.swapchain.swapchain, UINT64_MAX, ctx.present_complete[current_frame_], VK_NULL_HANDLE, &img_idx_);
     if (ret != VK_SUCCESS) {
         if (ret == VK_ERROR_OUT_OF_DATE_KHR) {
             // TODO: recreate swapchain
@@ -113,7 +113,7 @@ bool Renderer::beginFrame(RenderingContext& ctx, Swapchain& swapchain) {
     return true;
 }
 
-void Renderer::endFrame(RenderingContext& ctx, Swapchain& swapchain) {
+void Renderer::endFrame(RenderingContext& ctx) {
     assert(vkEndCommandBuffer(cmd_bufs_[current_frame_]) == VK_SUCCESS);
 
     VkSubmitInfo submit_info{};
@@ -138,7 +138,7 @@ void Renderer::endFrame(RenderingContext& ctx, Swapchain& swapchain) {
     present_info.waitSemaphoreCount = 1;
     present_info.pWaitSemaphores = &ctx.render_complete[current_frame_];
     present_info.swapchainCount = 1;
-    present_info.pSwapchains = &swapchain.swapchain;
+    present_info.pSwapchains = &ctx.swapchain.swapchain;
     present_info.pImageIndices = &img_idx_; // CONCERN
 
     ret = vkQueuePresentKHR(ctx.present_queue, &present_info);
@@ -442,9 +442,9 @@ void Renderer::renderColor(RenderingContext& ctx, std::vector<Renderable>& scene
 }
 
 // TODO: Frame beginning
-void Renderer::render(RenderingContext& ctx, std::vector<Renderable>& scene, const DirectionalLight& light, const Camera& camera, Swapchain& swapchain) {
+void Renderer::render(RenderingContext& ctx, std::vector<Renderable>& scene, const DirectionalLight& light, const Camera& camera) {
     renderShadowMap(ctx, scene, light);
-    renderColor(ctx, scene, light, camera, swapchain);
+    renderColor(ctx, scene, light, camera, ctx.swapchain);
 }
 
 void Renderer::compileMaterial(RenderingContext& ctx, const std::shared_ptr<Material>& material) {

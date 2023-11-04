@@ -5,6 +5,7 @@
 #include <algorithm>
 
 using namespace kk::renderer;
+/*
 
 template <class T>
 constexpr const T& clamp(const T& val, const T& low, const T& high) {
@@ -122,3 +123,4 @@ static void configureSettings(RenderingContext& ctx, Window& window, Swapchain& 
     // Configure pre transform
     swapchain.pre_transform = caps.currentTransform;
 }
+*/

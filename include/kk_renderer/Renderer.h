@@ -16,13 +16,13 @@ namespace kk {
     namespace renderer {
         class Renderer {
         public:
-            static Renderer create(RenderingContext& ctx, Swapchain& swapchain);
+            static Renderer create(RenderingContext& ctx);
             void destroy(RenderingContext& ctx);
 
-            bool beginFrame(RenderingContext& ctx, Swapchain& swapchain);
-            void endFrame(RenderingContext& ctx, Swapchain& swapchain);
+            bool beginFrame(RenderingContext& ctx);
+            void endFrame(RenderingContext& ctx);
             void render(RenderingContext& ctx, Renderable& renderable, const Transform& transform);
-            void render(RenderingContext& ctx, std::vector<Renderable>& scene, const DirectionalLight& light, const Camera& camera, Swapchain& swapchain);
+            void render(RenderingContext& ctx, std::vector<Renderable>& scene, const DirectionalLight& light, const Camera& camera);
 
             void compileMaterial(RenderingContext& ctx, const std::shared_ptr<Material>& material);
 
