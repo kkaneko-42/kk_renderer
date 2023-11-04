@@ -46,7 +46,7 @@ Texture Texture::create(
     const std::string& pos_z_path
 ) {
     const std::array<std::string, 6> files = {
-        neg_x_path, pos_x_path, neg_y_path, pos_y_path, neg_z_path, pos_z_path
+        pos_x_path, neg_x_path, neg_y_path, pos_y_path, pos_z_path, neg_z_path
     };
 
     int x = 0, y = 0, ch = 0;
