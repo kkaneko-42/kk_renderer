@@ -216,6 +216,10 @@ static VkPhysicalDevice pickGPU(VkInstance instance, const std::vector<const cha
     vkEnumeratePhysicalDevices(instance, &device_count, devices.data());
 
     for (const auto& gpu : devices) {
+        if (!isExtensionsSupported(gpu, exts)) {
+            continue;
+        }
+
         const bool is_graphics_supported = findQueueFamily(
             gpu,
             [](uint32_t, const  VkQueueFamilyProperties& props) {
@@ -223,6 +227,9 @@ static VkPhysicalDevice pickGPU(VkInstance instance, const std::vector<const cha
             },
             nullptr
         );
+        if (!is_graphics_supported) {
+            continue;
+        }
 
         const bool is_present_supported = findQueueFamily(
             gpu,
@@ -233,20 +240,18 @@ static VkPhysicalDevice pickGPU(VkInstance instance, const std::vector<const cha
             },
             nullptr
         );
-
-        const Swapchain::SupportInfo swapchain_support = Swapchain::SupportInfo::query(gpu, surface);
-        const bool is_swapchain_supported = (
-            swapchain_support.formats.size() != 0 &&
-            swapchain_support.present_modes.size() != 0
-        );
-
-        if (isExtensionsSupported(gpu, exts) &&
-            is_graphics_supported &&
-            is_present_supported &&
-            is_swapchain_supported
-        ) {
-            return gpu;
+        if (!is_present_supported) {
+            continue;
         }
+
+        const auto swapchain_support = Swapchain::SupportInfo::query(gpu, surface);
+        if (swapchain_support.formats.size() == 0 ||
+            swapchain_support.present_modes.size()
+        ) {
+            continue;
+        }
+
+        return gpu;
     }
 
     assert(false && "Suitable physical device not found");
