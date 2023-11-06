@@ -246,7 +246,7 @@ static VkPhysicalDevice pickGPU(VkInstance instance, const std::vector<const cha
 
         const auto swapchain_support = Swapchain::SupportInfo::query(gpu, surface);
         if (swapchain_support.formats.size() == 0 ||
-            swapchain_support.present_modes.size()
+            swapchain_support.present_modes.size() == 0
         ) {
             continue;
         }
