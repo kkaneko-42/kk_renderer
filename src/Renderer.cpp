@@ -533,7 +533,16 @@ void Renderer::createFramebuffers(RenderingContext& ctx, const Swapchain& swapch
 
 static Image createDepthImage(RenderingContext& ctx, VkExtent2D extent) {
     // TODO: Query format support
-    VkFormat format = VK_FORMAT_D32_SFLOAT;
+    // VkFormat format = VK_FORMAT_D32_SFLOAT;
+    VkFormat format;
+    if (!ctx.findFormat(
+            {VK_FORMAT_D32_SFLOAT, VK_FORMAT_D32_SFLOAT_S8_UINT, VK_FORMAT_D24_UNORM_S8_UINT},
+            VK_IMAGE_TILING_OPTIMAL,
+            VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT,
+            &format
+    )) {
+        assert(false && "Depth format not found");
+    }
 
     Image depth = Image::create(
         ctx,
@@ -654,6 +663,16 @@ void Renderer::createDescriptors(RenderingContext& ctx) {
 }
 
 static Texture createShadowMap(RenderingContext& ctx, VkExtent2D extent) {
+    VkFormat format;
+    if (!ctx.findFormat(
+        {VK_FORMAT_D16_UNORM, VK_FORMAT_D16_UNORM_S8_UINT, VK_FORMAT_D24_UNORM_S8_UINT},
+        VK_IMAGE_TILING_OPTIMAL,
+        VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT,
+        &format
+    )) {
+        assert(false && "Shadow map format not found");
+    }
+
     return Texture::create(
         ctx,
         nullptr,
@@ -671,7 +690,8 @@ static Texture createShadowMap(RenderingContext& ctx, VkExtent2D extent) {
 void Renderer::createShadowResources(RenderingContext& ctx) {
     // Create render pass
     VkAttachmentDescription shadow{};
-    shadow.format = VK_FORMAT_D16_UNORM; // TODO: query format
+    // shadow.format = VK_FORMAT_D16_UNORM; // TODO: query format
+    shadow.format = shadow_map_.format;
     shadow.samples = VK_SAMPLE_COUNT_1_BIT;
     shadow.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
     shadow.storeOp = VK_ATTACHMENT_STORE_OP_STORE;

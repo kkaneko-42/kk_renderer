@@ -47,6 +47,7 @@ namespace kk {
             void destroy();
             VkImageView createImageView(VkImage image, VkFormat format, VkImageAspectFlags aspectFlags);
             uint32_t findMemoryType(uint32_t type_filter, VkMemoryPropertyFlags props);
+            bool findFormat(const std::vector<VkFormat>& cands, VkImageTiling tiling, VkFormatFeatureFlags features, VkFormat* result);
             // VkCommandBuffer beginSingleTimeCommandBuffer();
             // void endSingleTimeCommandBuffer(VkCommandBuffer cmd);
             void submitCmdsImmediate(std::function<void(VkCommandBuffer)> cmds_recorder);

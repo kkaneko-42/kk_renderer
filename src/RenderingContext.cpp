@@ -111,6 +111,28 @@ uint32_t RenderingContext::findMemoryType(uint32_t type_filter, VkMemoryProperty
     return UINT32_MAX;
 }
 
+bool RenderingContext::findFormat(const std::vector<VkFormat>& cands, VkImageTiling tiling, VkFormatFeatureFlags features, VkFormat* result) {
+    for (const auto& format : cands) {
+        VkFormatProperties props;
+        vkGetPhysicalDeviceFormatProperties(gpu, format, &props);
+
+        VkFormatFeatureFlags supported =
+            (tiling == VK_IMAGE_TILING_LINEAR) ? props.linearTilingFeatures :
+            (tiling == VK_IMAGE_TILING_OPTIMAL) ? props.optimalTilingFeatures :
+            0
+        ;
+
+        if ((supported & features) == features) {
+            if (result != nullptr) {
+                *result = format;
+                return true;
+            }
+        }
+    }
+
+    return false;
+}
+
 static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(
     VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
     VkDebugUtilsMessageTypeFlagsEXT messageType,
