@@ -4,6 +4,7 @@
 #include <iostream>
 #include <fstream>
 #include <cstring>
+#include <climits>
 
 using namespace kk::renderer;
 
@@ -14,7 +15,7 @@ Shader Shader::create(RenderingContext& ctx, const std::string& path) {
 
     VkShaderModuleCreateInfo info{};
     info.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
-    info.codeSize = code.size();
+    info.codeSize = code.size() * sizeof(uint32_t);
     info.pCode = code.data();
 
     Shader shader;
@@ -86,7 +87,7 @@ static std::vector<uint32_t> readBinary(const std::string& path) {
 
     file.close();
 
-    std::vector<uint32_t> result(size);
+    std::vector<uint32_t> result(size / (32 / CHAR_BIT));
     std::memcpy(result.data(), buffer.data(), size);
 
     return result;
