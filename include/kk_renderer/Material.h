@@ -22,9 +22,8 @@ namespace kk {
                 frag_ = frag;
             }
 
-            inline void setTexture(const std::shared_ptr<Texture>& texture) {
-                texture_ = texture;
-                // TODO: set dirty flag true
+            inline void setTexture(const std::string& name, const std::shared_ptr<Texture>& texture) {
+                resource_data_[name] = {std::static_pointer_cast<void>(texture), true};
             }
 
             // CONCERN: Vulkan abstraction
@@ -36,28 +35,33 @@ namespace kk {
                 depth_stencil_.depthCompareOp = op;
             }
 
-            inline std::shared_ptr<Texture> getTexture() const {
-                return texture_;
-            }
-
-            void compile(RenderingContext& ctx, VkRenderPass render_pass);
+            void compile(
+                RenderingContext& ctx,
+                VkRenderPass render_pass,
+                VkDescriptorSetLayout per_view_layout,
+                VkDescriptorSetLayout per_object_layout
+            );
 
             inline bool isCompiled() const { return is_compiled_; }
             inline VkPipeline getPipeline() const { return pipeline_; }
             inline VkPipelineLayout getPipelineLayout() const { return pipeline_layout_; }
-            inline const std::vector<VkDescriptorSetLayout>& getDescriptorSetLayouts() const { return desc_layouts_; }
-            inline const VkDescriptorSet& getDescriptorSet() const { return desc_set_; }
+            inline VkDescriptorSetLayout getDescriptorSetLayout() const { return desc_layout_; }
+            inline VkDescriptorSet getDescriptorSet() const { return desc_set_; }
 
         private:
             void setDefault();
             void buildDescLayout(RenderingContext& ctx);
-            void buildDescriptorSets(RenderingContext& ctx, const VkDescriptorSetLayout& layouts);
+            void buildDescriptorSet(RenderingContext& ctx, const VkDescriptorSetLayout& layout);
+            void updateDescriptorSet(RenderingContext& ctx);
             void buildPipelineLayout(RenderingContext& ctx, const std::vector<VkDescriptorSetLayout>& desc_layouts);
             void buildPipeline(RenderingContext& ctx, VkPipelineLayout layout, VkRenderPass render_pass);
 
             bool is_compiled_;
 
-            std::shared_ptr<Texture> texture_;
+            // std::shared_ptr<Texture> texture_;
+            // name -> {resource, dirty_flag}
+            std::unordered_map<std::string, VkDescriptorSetLayoutBinding> resource_layout_;
+            std::unordered_map<std::string, std::pair<std::shared_ptr<void>, bool>> resource_data_;
 
             std::shared_ptr<Shader> vert_, frag_;
             VkPipelineInputAssemblyStateCreateInfo input_asm_;
@@ -69,12 +73,11 @@ namespace kk {
             std::vector<VkPipelineColorBlendAttachmentState> blend_attachments_;
             std::vector<VkDynamicState> dynamic_states_;
 
-            std::vector<VkDescriptorSetLayout> desc_layouts_;
+            VkDescriptorSetLayout desc_layout_;
+            VkDescriptorSet desc_set_;
 
             VkPipelineLayout pipeline_layout_;
             VkPipeline pipeline_;
-
-            VkDescriptorSet desc_set_;
         };
     }
 }

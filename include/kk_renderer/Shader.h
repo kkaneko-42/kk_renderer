@@ -3,18 +3,28 @@
 #include "RenderingContext.h"
 #include "Mat4.h"
 #include "Texture.h"
+
 #include <unordered_map>
 #include <string>
 
 namespace kk {
     namespace renderer {
-        struct Shader {
+        class Shader {
+        public:
             static Shader create(RenderingContext& ctx, const std::string& path);
             void destroy(RenderingContext& ctx);
 
-            // Descriptor Set Index -> Layout Bindings
-            std::unordered_map<size_t, std::vector<VkDescriptorSetLayoutBinding>> sets_bindings;
-            VkShaderModule module;
+            inline VkShaderModule get() const { return module_; }
+            inline constexpr const std::unordered_map<std::string, VkDescriptorSetLayoutBinding>& getResourceLayout() const {
+                return bindings_;
+            }
+
+        private:
+            void acquireBindings(std::vector<uint32_t>&& code);
+
+            // std::vector<VkDescriptorSetLayoutBinding> bindings_;
+            std::unordered_map<std::string, VkDescriptorSetLayoutBinding> bindings_;
+            VkShaderModule module_;
         };
     }
 }

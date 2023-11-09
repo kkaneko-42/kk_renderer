@@ -85,11 +85,11 @@ TEST(LightingTest, Shadow) {
     auto vert = std::make_shared<Shader>(Shader::create(ctx, TEST_RESOURCE_DIR + std::string("/shaders/shadow_light.vert.spv")));
     auto frag = std::make_shared<Shader>(Shader::create(ctx, TEST_RESOURCE_DIR + std::string("/shaders/shadow_light.frag.spv")));
     auto sphere_mat = std::make_shared<Material>();
-    sphere_mat->setTexture(brown);
+    sphere_mat->setTexture("texSampler", brown);
     sphere_mat->setVertexShader(vert);
     sphere_mat->setFragmentShader(frag);
     auto plane_mat = std::make_shared<Material>();
-    plane_mat->setTexture(white);
+    plane_mat->setTexture("texSampler", white);
     plane_mat->setVertexShader(vert);
     plane_mat->setFragmentShader(frag);
 

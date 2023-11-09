@@ -111,6 +111,28 @@ uint32_t RenderingContext::findMemoryType(uint32_t type_filter, VkMemoryProperty
     return UINT32_MAX;
 }
 
+bool RenderingContext::findFormat(const std::vector<VkFormat>& cands, VkImageTiling tiling, VkFormatFeatureFlags features, VkFormat* result) {
+    for (const auto& format : cands) {
+        VkFormatProperties props;
+        vkGetPhysicalDeviceFormatProperties(gpu, format, &props);
+
+        VkFormatFeatureFlags supported =
+            (tiling == VK_IMAGE_TILING_LINEAR) ? props.linearTilingFeatures :
+            (tiling == VK_IMAGE_TILING_OPTIMAL) ? props.optimalTilingFeatures :
+            0
+        ;
+
+        if ((supported & features) == features) {
+            if (result != nullptr) {
+                *result = format;
+                return true;
+            }
+        }
+    }
+
+    return false;
+}
+
 static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(
     VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
     VkDebugUtilsMessageTypeFlagsEXT messageType,
@@ -216,6 +238,10 @@ static VkPhysicalDevice pickGPU(VkInstance instance, const std::vector<const cha
     vkEnumeratePhysicalDevices(instance, &device_count, devices.data());
 
     for (const auto& gpu : devices) {
+        if (!isExtensionsSupported(gpu, exts)) {
+            continue;
+        }
+
         const bool is_graphics_supported = findQueueFamily(
             gpu,
             [](uint32_t, const  VkQueueFamilyProperties& props) {
@@ -223,6 +249,9 @@ static VkPhysicalDevice pickGPU(VkInstance instance, const std::vector<const cha
             },
             nullptr
         );
+        if (!is_graphics_supported) {
+            continue;
+        }
 
         const bool is_present_supported = findQueueFamily(
             gpu,
@@ -233,20 +262,18 @@ static VkPhysicalDevice pickGPU(VkInstance instance, const std::vector<const cha
             },
             nullptr
         );
-
-        const Swapchain::SupportInfo swapchain_support = Swapchain::SupportInfo::query(gpu, surface);
-        const bool is_swapchain_supported = (
-            swapchain_support.formats.size() != 0 &&
-            swapchain_support.present_modes.size() != 0
-        );
-
-        if (isExtensionsSupported(gpu, exts) &&
-            is_graphics_supported &&
-            is_present_supported &&
-            is_swapchain_supported
-        ) {
-            return gpu;
+        if (!is_present_supported) {
+            continue;
         }
+
+        const auto swapchain_support = Swapchain::SupportInfo::query(gpu, surface);
+        if (swapchain_support.formats.size() == 0 ||
+            swapchain_support.present_modes.size() == 0
+        ) {
+            continue;
+        }
+
+        return gpu;
     }
 
     assert(false && "Suitable physical device not found");

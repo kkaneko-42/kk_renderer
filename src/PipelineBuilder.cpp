@@ -13,12 +13,12 @@ VkPipeline PipelineBuilder::build(
     // Set vertex shader info
     shader_stages[0].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
     shader_stages[0].stage = VK_SHADER_STAGE_VERTEX_BIT;
-    shader_stages[0].module = vert_->module;
+    shader_stages[0].module = vert_->get();
     shader_stages[0].pName = "main";
     // Set fragment shader info
     shader_stages[1].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
     shader_stages[1].stage = VK_SHADER_STAGE_FRAGMENT_BIT;
-    shader_stages[1].module = frag_->module;
+    shader_stages[1].module = frag_->get();
     shader_stages[1].pName = "main";
 
     const auto binding_desc = Vertex::getBindingDescription();

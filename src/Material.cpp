@@ -17,46 +17,56 @@ Material::Material() :
 void Material::destroy(RenderingContext& ctx) {
     vkDestroyPipeline(ctx.device, pipeline_, nullptr);
     vkDestroyPipelineLayout(ctx.device, pipeline_layout_, nullptr);
-    
-    for (const auto& desc_layout : desc_layouts_) {
-        vkDestroyDescriptorSetLayout(ctx.device, desc_layout, nullptr);
-    }
+    vkDestroyDescriptorSetLayout(ctx.device, desc_layout_, nullptr);
 }
 
-void Material::compile(RenderingContext& ctx, VkRenderPass render_pass) {
+void Material::compile(
+    RenderingContext& ctx,
+    VkRenderPass render_pass,
+    VkDescriptorSetLayout per_view_layout,
+    VkDescriptorSetLayout per_object_layout
+) {
     // TODO: Destroy resources existing already
     
     buildDescLayout(ctx);
-    buildDescriptorSets(ctx, desc_layouts_[1]);
-    buildPipelineLayout(ctx, desc_layouts_);
+    buildDescriptorSet(ctx, desc_layout_);
+    buildPipelineLayout(ctx, {per_view_layout, desc_layout_, per_object_layout});
     buildPipeline(ctx, pipeline_layout_, render_pass);
 
     is_compiled_ = true;
 }
 
 void Material::buildDescLayout(RenderingContext& ctx) {
-    std::map<size_t, std::vector<VkDescriptorSetLayoutBinding>> sets_bindings;
+    // Gather bindings
+    const auto& vert_bindings = vert_->getResourceLayout();
+    resource_layout_ = vert_bindings;
 
-    // Gather sets bindings
-    // TODO: Gather either vert shader and frag shader (using reflection)
-    for (const auto& kvp : vert_->sets_bindings) {
-        sets_bindings[kvp.first].insert(sets_bindings[kvp.first].end(), kvp.second.begin(), kvp.second.end());
+    const auto& frag_bindings = frag_->getResourceLayout();
+    for (const auto& kvp : frag_bindings) {
+        const auto& name = kvp.first;
+        if (resource_layout_.count(name) == 0) {
+            resource_layout_[name] = kvp.second;
+        } else {
+            resource_layout_[name].stageFlags |= VK_SHADER_STAGE_FRAGMENT_BIT;
+        }
+    }
+
+    std::vector<VkDescriptorSetLayoutBinding> bindings;
+    bindings.reserve(resource_layout_.size());
+    for (const auto& kvp : resource_layout_) {
+        bindings.push_back(kvp.second);
     }
 
     // Create descriptor set layouts
-    for (const auto& kvp : sets_bindings) {
-        VkDescriptorSetLayoutCreateInfo info{};
-        info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-        info.bindingCount = static_cast<uint32_t>(kvp.second.size());
-        info.pBindings = kvp.second.data();
+    VkDescriptorSetLayoutCreateInfo info{};
+    info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+    info.bindingCount = static_cast<uint32_t>(bindings.size());
+    info.pBindings = bindings.data();
 
-        VkDescriptorSetLayout layout;
-        assert(vkCreateDescriptorSetLayout(ctx.device, &info, nullptr, &layout) == VK_SUCCESS);
-        desc_layouts_.push_back(layout);
-    }
+    assert(vkCreateDescriptorSetLayout(ctx.device, &info, nullptr, &desc_layout_) == VK_SUCCESS);
 }
 
-void Material::buildDescriptorSets(RenderingContext& ctx, const VkDescriptorSetLayout& layout) {
+void Material::buildDescriptorSet(RenderingContext& ctx, const VkDescriptorSetLayout& layout) {
     VkDescriptorSetAllocateInfo alloc_info{};
     alloc_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
     alloc_info.descriptorPool = ctx.desc_pool;
@@ -64,22 +74,66 @@ void Material::buildDescriptorSets(RenderingContext& ctx, const VkDescriptorSetL
     alloc_info.pSetLayouts = &layout;
     assert(vkAllocateDescriptorSets(ctx.device, &alloc_info, &desc_set_) == VK_SUCCESS);
 
-    // TODO: Support texture rebinding 
-    VkWriteDescriptorSet write_texture{};
-    write_texture.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-    write_texture.dstSet = desc_set_;
-    write_texture.dstBinding = 0;
-    write_texture.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    write_texture.descriptorCount = 1;
+    updateDescriptorSet(ctx);
+}
 
-    assert(texture_ != nullptr);
-    VkDescriptorImageInfo tex_info{};
-    tex_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-    tex_info.imageView = texture_->view;
-    tex_info.sampler = texture_->sampler;
-    write_texture.pImageInfo = &tex_info;
+void Material::updateDescriptorSet(RenderingContext& ctx) {
+    std::vector<VkWriteDescriptorSet> writes;
+    for (const auto& kvp : resource_layout_) {
+        const auto& name = kvp.first;
+        if (resource_data_.count(name) == 0) {
+            std::cerr << "WARNING: Material param \"" << name << "\" is not set" << std::endl;
+            continue;
+        } else if (!resource_data_[name].second) {
+            // Resource is not changed
+            continue;
+        }
 
-    vkUpdateDescriptorSets(ctx.device, 1, &write_texture, 0, nullptr);
+        const auto& type = resource_layout_[name].descriptorType;
+        VkWriteDescriptorSet desc_write{};
+        desc_write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        desc_write.dstSet = desc_set_;
+        desc_write.dstBinding = resource_layout_[name].binding;
+        desc_write.descriptorCount = 1;
+        desc_write.descriptorType = type;
+
+        const auto& data = resource_data_[name].first;
+        if (type == VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER) {
+            const auto buf_data = std::static_pointer_cast<Buffer>(data);
+            // TODO: Validate resource type
+            if (buf_data == nullptr) {
+                std::cerr << "WARNING: Material param \"" << name << "\" have wrong resource type (Buffer required)" << std::endl;
+            } else {
+                auto* buf_info = new VkDescriptorBufferInfo();
+                buf_info->buffer = buf_data->buffer;
+                buf_info->offset = 0;
+                buf_info->range  = buf_data->size;
+                desc_write.pBufferInfo = buf_info;
+            }
+        } else if (type == VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER) {
+            const auto img_data = std::static_pointer_cast<Texture>(data);
+            // TODO: Validate resource type
+            if (img_data == nullptr) {
+                std::cerr << "WARNING: Material param \"" << name << "\" have wrong resource type (Texture required)" << std::endl;
+            } else {
+                auto* img_info = new VkDescriptorImageInfo();
+                img_info->imageLayout   = img_data->layout;
+                img_info->imageView     = img_data->view;
+                img_info->sampler       = img_data->sampler;
+                desc_write.pImageInfo = img_info;
+            }
+        } else {
+            std::cerr << "UNSUPPORTED: Resource type: " << type << std::endl;
+        }
+        writes.push_back(desc_write);
+    }
+    vkUpdateDescriptorSets(ctx.device, static_cast<uint32_t>(writes.size()), writes.data(), 0, nullptr);
+
+    // Cleanup
+    for (const auto& w : writes) {
+        delete w.pBufferInfo;
+        delete w.pImageInfo;
+    }
 }
 
 void Material::buildPipelineLayout(RenderingContext& ctx, const std::vector<VkDescriptorSetLayout>& desc_layouts) {
@@ -96,12 +150,12 @@ void Material::buildPipeline(RenderingContext& ctx, VkPipelineLayout layout, VkR
     // Set vertex shader info
     shader_stages[0].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
     shader_stages[0].stage = VK_SHADER_STAGE_VERTEX_BIT;
-    shader_stages[0].module = vert_->module;
+    shader_stages[0].module = vert_->get();
     shader_stages[0].pName = "main";
     // Set fragment shader info
     shader_stages[1].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
     shader_stages[1].stage = VK_SHADER_STAGE_FRAGMENT_BIT;
-    shader_stages[1].module = frag_->module;
+    shader_stages[1].module = frag_->get();
     shader_stages[1].pName = "main";
 
     const auto binding_desc = Vertex::getBindingDescription();
