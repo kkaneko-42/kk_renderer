@@ -22,9 +22,8 @@ namespace kk {
                 frag_ = frag;
             }
 
-            inline void setTexture(const std::shared_ptr<Texture>& texture) {
-                texture_ = texture;
-                // TODO: set dirty flag true
+            inline void setTexture(const std::string& name, const std::shared_ptr<Texture>& texture) {
+                resource_data_[name] = {std::static_pointer_cast<void>(texture), true};
             }
 
             // CONCERN: Vulkan abstraction
@@ -34,10 +33,6 @@ namespace kk {
 
             inline void setDepthCompareOp(VkCompareOp op) {
                 depth_stencil_.depthCompareOp = op;
-            }
-
-            inline std::shared_ptr<Texture> getTexture() const {
-                return texture_;
             }
 
             void compile(
@@ -62,8 +57,10 @@ namespace kk {
 
             bool is_compiled_;
 
-            std::shared_ptr<Texture> texture_;
-            std::unordered_map<std::string, std::shared_ptr<void>> resources_;
+            // std::shared_ptr<Texture> texture_;
+            // name -> {resource, dirty_flag}
+            std::unordered_map<std::string, VkDescriptorSetLayoutBinding> resource_layout_;
+            std::unordered_map<std::string, std::pair<std::shared_ptr<void>, bool>> resource_data_;
 
             std::shared_ptr<Shader> vert_, frag_;
             VkPipelineInputAssemblyStateCreateInfo input_asm_;

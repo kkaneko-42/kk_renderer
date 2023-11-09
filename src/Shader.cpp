@@ -66,7 +66,7 @@ void Shader::acquireBindings(std::vector<uint32_t>&& code) {
             binding.descriptorCount = 1;
             binding.descriptorType = kvp.first;
             binding.stageFlags = stage;
-            bindings_.push_back(binding);
+            bindings_[resource.name] = binding;
         }
     }
 }

@@ -38,11 +38,26 @@ void Material::compile(
 
 void Material::buildDescLayout(RenderingContext& ctx) {
     // Gather bindings
-    std::vector<VkDescriptorSetLayoutBinding> bindings = vert_->getResourceLayout();
+    const auto& vert_bindings = vert_->getResourceLayout();
+    resource_layout_ = vert_bindings;
+
     const auto& frag_bindings = frag_->getResourceLayout();
-    bindings.insert(bindings.end(), frag_bindings.begin(), frag_bindings.end());
+    for (const auto& kvp : frag_bindings) {
+        const auto& name = kvp.first;
+        if (resource_layout_.count(name) == 0) {
+            resource_layout_[name] = kvp.second;
+        } else {
+            resource_layout_[name].stageFlags |= VK_SHADER_STAGE_FRAGMENT_BIT;
+        }
+    }
 
     // Create descriptor set layouts
+    std::vector<VkDescriptorSetLayoutBinding> bindings;
+    bindings.reserve(resource_layout_.size());
+    for (const auto& kvp : resource_layout_) {
+        bindings.push_back(kvp.second);
+    }
+
     VkDescriptorSetLayoutCreateInfo info{};
     info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
     info.bindingCount = static_cast<uint32_t>(bindings.size());
@@ -59,22 +74,61 @@ void Material::buildDescriptorSets(RenderingContext& ctx, const VkDescriptorSetL
     alloc_info.pSetLayouts = &layout;
     assert(vkAllocateDescriptorSets(ctx.device, &alloc_info, &desc_set_) == VK_SUCCESS);
 
-    // TODO: Support texture rebinding 
-    VkWriteDescriptorSet write_texture{};
-    write_texture.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-    write_texture.dstSet = desc_set_;
-    write_texture.dstBinding = 0;
-    write_texture.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    write_texture.descriptorCount = 1;
+    std::vector<VkWriteDescriptorSet> writes;
+    for (const auto& kvp : resource_layout_) {
+        const auto& name = kvp.first;
+        std::cout << "name: " << name << std::endl;
+        if (resource_data_.count(name) == 0) {
+            std::cerr << "WARNING: Material param \"" << name << "\" is not set" << std::endl;
+            continue;
+        }
 
-    assert(texture_ != nullptr);
-    VkDescriptorImageInfo tex_info{};
-    tex_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-    tex_info.imageView = texture_->view;
-    tex_info.sampler = texture_->sampler;
-    write_texture.pImageInfo = &tex_info;
+        const auto& type = resource_layout_[name].descriptorType;
+        VkWriteDescriptorSet desc_write{};
+        desc_write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        desc_write.dstSet = desc_set_;
+        desc_write.dstBinding = resource_layout_[name].binding;
+        desc_write.descriptorCount = 1;
+        desc_write.descriptorType = type;
 
-    vkUpdateDescriptorSets(ctx.device, 1, &write_texture, 0, nullptr);
+        const auto& data = resource_data_[name].first;
+        if (type == VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER) {
+            const auto buf_data = std::static_pointer_cast<Buffer>(data);
+            // TODO: Validate resource type
+            if (buf_data == nullptr) {
+                std::cerr << "WARNING: Material param \"" << name << "\" have wrong resource type (Buffer required)" << std::endl;
+            } else {
+                auto* buf_info = new VkDescriptorBufferInfo();
+                buf_info->buffer = buf_data->buffer;
+                buf_info->offset = 0;
+                buf_info->range  = buf_data->size;
+                desc_write.pBufferInfo = buf_info;
+            }
+        } else if (type == VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER) {
+            const auto img_data = std::static_pointer_cast<Texture>(data);
+            // TODO: Validate resource type
+            if (img_data == nullptr) {
+                std::cerr << "WARNING: Material param \"" << name << "\" have wrong resource type (Texture required)" << std::endl;
+            } else {
+                std::cout << "in!!" << std::endl;
+                auto* img_info = new VkDescriptorImageInfo();
+                img_info->imageLayout   = img_data->layout;
+                img_info->imageView     = img_data->view;
+                img_info->sampler       = img_data->sampler;
+                desc_write.pImageInfo = img_info;
+            }
+        } else {
+            std::cerr << "UNSUPPORTED: Resource type: " << type << std::endl;
+        }
+        writes.push_back(desc_write);
+    }
+    vkUpdateDescriptorSets(ctx.device, static_cast<uint32_t>(writes.size()), writes.data(), 0, nullptr);
+
+    // Cleanup
+    for (const auto& w : writes) {
+        delete w.pBufferInfo;
+        delete w.pImageInfo;
+    }
 }
 
 void Material::buildPipelineLayout(RenderingContext& ctx, const std::vector<VkDescriptorSetLayout>& desc_layouts) {

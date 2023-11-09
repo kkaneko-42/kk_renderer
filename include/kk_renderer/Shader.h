@@ -15,14 +15,15 @@ namespace kk {
             void destroy(RenderingContext& ctx);
 
             inline VkShaderModule get() const { return module_; }
-            inline constexpr const std::vector<VkDescriptorSetLayoutBinding>& getResourceLayout() const {
+            inline constexpr const std::unordered_map<std::string, VkDescriptorSetLayoutBinding>& getResourceLayout() const {
                 return bindings_;
             }
 
         private:
             void acquireBindings(std::vector<uint32_t>&& code);
 
-            std::vector<VkDescriptorSetLayoutBinding> bindings_;
+            // std::vector<VkDescriptorSetLayoutBinding> bindings_;
+            std::unordered_map<std::string, VkDescriptorSetLayoutBinding> bindings_;
             VkShaderModule module_;
         };
     }
