@@ -667,7 +667,7 @@ static Texture createShadowMap(RenderingContext& ctx, VkExtent2D extent) {
     if (!ctx.findFormat(
         {VK_FORMAT_D16_UNORM, VK_FORMAT_D16_UNORM_S8_UINT, VK_FORMAT_D24_UNORM_S8_UINT},
         VK_IMAGE_TILING_OPTIMAL,
-        VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT,
+        VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT,
         &format
     )) {
         assert(false && "Shadow map format not found");
@@ -679,7 +679,7 @@ static Texture createShadowMap(RenderingContext& ctx, VkExtent2D extent) {
         2,
         extent.width,
         extent.height,
-        VK_FORMAT_D16_UNORM, // TODO: query format
+        format, // TODO: query format
         VK_IMAGE_TILING_OPTIMAL,
         VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
         VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
