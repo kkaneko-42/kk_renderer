@@ -77,7 +77,6 @@ void Material::buildDescriptorSets(RenderingContext& ctx, const VkDescriptorSetL
     std::vector<VkWriteDescriptorSet> writes;
     for (const auto& kvp : resource_layout_) {
         const auto& name = kvp.first;
-        std::cout << "name: " << name << std::endl;
         if (resource_data_.count(name) == 0) {
             std::cerr << "WARNING: Material param \"" << name << "\" is not set" << std::endl;
             continue;
@@ -110,7 +109,6 @@ void Material::buildDescriptorSets(RenderingContext& ctx, const VkDescriptorSetL
             if (img_data == nullptr) {
                 std::cerr << "WARNING: Material param \"" << name << "\" have wrong resource type (Texture required)" << std::endl;
             } else {
-                std::cout << "in!!" << std::endl;
                 auto* img_info = new VkDescriptorImageInfo();
                 img_info->imageLayout   = img_data->layout;
                 img_info->imageView     = img_data->view;

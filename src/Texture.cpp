@@ -289,9 +289,9 @@ static void createImage(RenderingContext& ctx, const void* texels, size_t texel_
             VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
         );
         staging.setData(ctx, texels, staging.size);
-        ctx.transitionImageLayout(texture.image, texture.format, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+        texture.transitionLayout(ctx, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
         staging.copyTo(ctx, texture, { texture.width, texture.height });
-        ctx.transitionImageLayout(texture.image, texture.format, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+        texture.transitionLayout(ctx, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
         staging.destroy(ctx);
     }
 }
