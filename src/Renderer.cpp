@@ -155,7 +155,7 @@ void Renderer::endFrame(RenderingContext& ctx) {
 void Renderer::prepareRendering(RenderingContext& ctx, Renderable& renderable) {
     // Set pipeline state
     if (!renderable.material->isCompiled()) {
-        renderable.material->compile(ctx, render_pass_);
+        renderable.material->compile(ctx, render_pass_, global_uniform_layout_, object_uniform_layout_);
     }
 
     // Setup uniform buffers
@@ -448,7 +448,7 @@ void Renderer::render(RenderingContext& ctx, std::vector<Renderable>& scene, con
 }
 
 void Renderer::compileMaterial(RenderingContext& ctx, const std::shared_ptr<Material>& material) {
-    material->compile(ctx, render_pass_);
+    material->compile(ctx, render_pass_, global_uniform_layout_, object_uniform_layout_);
 }
 
 static VkRenderPass createRenderPass(RenderingContext& ctx, VkFormat swapchain_format /* TODO: remove swapchain_format */) {

@@ -41,6 +41,8 @@ if (UNIX)
 		glfw
 		gtest
 		pthread
+        spirv-cross-core
+        spirv-cross-glsl
 	)
 elseif (MSVC)
 	target_link_libraries(

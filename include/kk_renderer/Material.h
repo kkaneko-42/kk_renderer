@@ -40,13 +40,18 @@ namespace kk {
                 return texture_;
             }
 
-            void compile(RenderingContext& ctx, VkRenderPass render_pass);
+            void compile(
+                RenderingContext& ctx,
+                VkRenderPass render_pass,
+                VkDescriptorSetLayout per_view_layout,
+                VkDescriptorSetLayout per_object_layout
+            );
 
             inline bool isCompiled() const { return is_compiled_; }
             inline VkPipeline getPipeline() const { return pipeline_; }
             inline VkPipelineLayout getPipelineLayout() const { return pipeline_layout_; }
-            inline const std::vector<VkDescriptorSetLayout>& getDescriptorSetLayouts() const { return desc_layouts_; }
-            inline const VkDescriptorSet& getDescriptorSet() const { return desc_set_; }
+            inline VkDescriptorSetLayout getDescriptorSetLayout() const { return desc_layout_; }
+            inline VkDescriptorSet getDescriptorSet() const { return desc_set_; }
 
         private:
             void setDefault();
@@ -58,6 +63,7 @@ namespace kk {
             bool is_compiled_;
 
             std::shared_ptr<Texture> texture_;
+            std::unordered_map<std::string, std::shared_ptr<void>> resources_;
 
             std::shared_ptr<Shader> vert_, frag_;
             VkPipelineInputAssemblyStateCreateInfo input_asm_;
@@ -69,12 +75,11 @@ namespace kk {
             std::vector<VkPipelineColorBlendAttachmentState> blend_attachments_;
             std::vector<VkDynamicState> dynamic_states_;
 
-            std::vector<VkDescriptorSetLayout> desc_layouts_;
+            VkDescriptorSetLayout desc_layout_;
+            VkDescriptorSet desc_set_;
 
             VkPipelineLayout pipeline_layout_;
             VkPipeline pipeline_;
-
-            VkDescriptorSet desc_set_;
         };
     }
 }
