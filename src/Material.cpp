@@ -29,7 +29,7 @@ void Material::compile(
     // TODO: Destroy resources existing already
     
     buildDescLayout(ctx);
-    buildDescriptorSets(ctx, desc_layout_);
+    buildDescriptorSet(ctx, desc_layout_);
     buildPipelineLayout(ctx, {per_view_layout, desc_layout_, per_object_layout});
     buildPipeline(ctx, pipeline_layout_, render_pass);
 
@@ -51,13 +51,13 @@ void Material::buildDescLayout(RenderingContext& ctx) {
         }
     }
 
-    // Create descriptor set layouts
     std::vector<VkDescriptorSetLayoutBinding> bindings;
     bindings.reserve(resource_layout_.size());
     for (const auto& kvp : resource_layout_) {
         bindings.push_back(kvp.second);
     }
 
+    // Create descriptor set layouts
     VkDescriptorSetLayoutCreateInfo info{};
     info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
     info.bindingCount = static_cast<uint32_t>(bindings.size());
@@ -66,7 +66,7 @@ void Material::buildDescLayout(RenderingContext& ctx) {
     assert(vkCreateDescriptorSetLayout(ctx.device, &info, nullptr, &desc_layout_) == VK_SUCCESS);
 }
 
-void Material::buildDescriptorSets(RenderingContext& ctx, const VkDescriptorSetLayout& layout) {
+void Material::buildDescriptorSet(RenderingContext& ctx, const VkDescriptorSetLayout& layout) {
     VkDescriptorSetAllocateInfo alloc_info{};
     alloc_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
     alloc_info.descriptorPool = ctx.desc_pool;
@@ -74,11 +74,18 @@ void Material::buildDescriptorSets(RenderingContext& ctx, const VkDescriptorSetL
     alloc_info.pSetLayouts = &layout;
     assert(vkAllocateDescriptorSets(ctx.device, &alloc_info, &desc_set_) == VK_SUCCESS);
 
+    updateDescriptorSet(ctx);
+}
+
+void Material::updateDescriptorSet(RenderingContext& ctx) {
     std::vector<VkWriteDescriptorSet> writes;
     for (const auto& kvp : resource_layout_) {
         const auto& name = kvp.first;
         if (resource_data_.count(name) == 0) {
             std::cerr << "WARNING: Material param \"" << name << "\" is not set" << std::endl;
+            continue;
+        } else if (!resource_data_[name].second) {
+            // Resource is not changed
             continue;
         }
 

@@ -51,7 +51,8 @@ namespace kk {
         private:
             void setDefault();
             void buildDescLayout(RenderingContext& ctx);
-            void buildDescriptorSets(RenderingContext& ctx, const VkDescriptorSetLayout& layouts);
+            void buildDescriptorSet(RenderingContext& ctx, const VkDescriptorSetLayout& layout);
+            void updateDescriptorSet(RenderingContext& ctx);
             void buildPipelineLayout(RenderingContext& ctx, const std::vector<VkDescriptorSetLayout>& desc_layouts);
             void buildPipeline(RenderingContext& ctx, VkPipelineLayout layout, VkRenderPass render_pass);
 
