@@ -159,6 +159,7 @@ void Renderer::prepareRendering(RenderingContext& ctx, Renderable& renderable) {
     }
 
     // Setup uniform buffers
+    /*
     if (object_uniforms_.find(renderable.id) == object_uniforms_.end()) {
         for (size_t i = 0; i < kMaxConcurrentFrames; ++i) {
             auto& uniform = object_uniforms_[renderable.id][i].first;
@@ -196,6 +197,7 @@ void Renderer::prepareRendering(RenderingContext& ctx, Renderable& renderable) {
             vkUpdateDescriptorSets(ctx.device, 1, &write_buf, 0, nullptr);
         }
     }
+    */
 }
 
 void Renderer::render(RenderingContext& ctx, Renderable& renderable, const Transform& transform) {
@@ -215,8 +217,8 @@ void Renderer::render(RenderingContext& ctx, Renderable& renderable, const Trans
     uniform.world_to_model = glm::inverse(uniform.model_to_world);
 
     // Copy object uniform
-    auto& dst_buf = object_uniforms_[renderable.id][current_frame_].first;
-    std::memcpy(dst_buf.mapped, &uniform, dst_buf.size);
+    // auto& dst_buf = object_uniforms_[renderable.id][current_frame_].first;
+    // std::memcpy(dst_buf.mapped, &uniform, dst_buf.size);
 
     // Set descriptor
     if (!is_camera_binded_) {
@@ -233,6 +235,7 @@ void Renderer::render(RenderingContext& ctx, Renderable& renderable, const Trans
         is_camera_binded_ = true;
     }
 
+    /*
     VkDescriptorSet desc_sets[] = { renderable.material->getDescriptorSet(), object_uniforms_[renderable.id][current_frame_].second };
     vkCmdBindDescriptorSets(
         cmd_buf,
@@ -244,6 +247,7 @@ void Renderer::render(RenderingContext& ctx, Renderable& renderable, const Trans
         0,
         nullptr
     );
+    */
 
     // Set geometry
     Geometry& geometry = *renderable.geometry;
@@ -315,6 +319,7 @@ void Renderer::renderShadowMap(RenderingContext& ctx, std::vector<Renderable>& s
         prepareRendering(ctx, renderable);
 
         // Setup object uniform
+        /*
         ObjectUniform uniform{};
         uniform.model_to_world =
             glm::translate(glm::mat4(1.0f), renderable.transform.position) *
@@ -322,6 +327,7 @@ void Renderer::renderShadowMap(RenderingContext& ctx, std::vector<Renderable>& s
             glm::scale(glm::mat4(1.0f), renderable.transform.scale)
             ;
         uniform.world_to_model = glm::inverse(uniform.model_to_world);
+        
         auto& current_object = object_uniforms_[renderable.id][current_frame_].first;
         std::memcpy(current_object.mapped, &uniform, current_object.size);
         vkCmdBindDescriptorSets(
@@ -334,6 +340,7 @@ void Renderer::renderShadowMap(RenderingContext& ctx, std::vector<Renderable>& s
             0,
             nullptr
         );
+        */
 
         Geometry& geometry = *renderable.geometry;
         const VkDeviceSize offsets[] = { 0 };
@@ -404,6 +411,7 @@ void Renderer::renderColor(RenderingContext& ctx, std::vector<Renderable>& scene
         Material& material = *renderable.material;
         vkCmdBindPipeline(cmd_buf, VK_PIPELINE_BIND_POINT_GRAPHICS, material.getPipeline());
 
+        /*
         ObjectUniform uniform{};
         uniform.model_to_world =
             glm::translate(glm::mat4(1.0f), renderable.transform.position) *
@@ -429,6 +437,7 @@ void Renderer::renderColor(RenderingContext& ctx, std::vector<Renderable>& scene
             0,
             nullptr
         );
+        */
 
         Geometry& geometry = *renderable.geometry;
         const VkDeviceSize offsets[] = { 0 };

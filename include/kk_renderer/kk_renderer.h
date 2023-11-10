@@ -8,3 +8,4 @@
 #include "ResourceDescriptor.h"
 #include "PerspectiveCamera.h"
 #include "Texture.h"
+#include "Scene.h"

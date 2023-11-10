@@ -7,29 +7,42 @@ namespace kk {
     namespace renderer {
         class Scene {
         public:
+            struct ObjectUniform {
+                alignas(16) Mat4 model_to_world;
+                alignas(16) Mat4 world_to_model;
+            };
+
+            static Scene create(RenderingContext& ctx);
+            void destroy();
+
             void addObject(const Renderable& renderable);
             bool removeObject(const Renderable& renderable);
 
-            void addLight(const DirectionalLight& light);
-            bool removeLight(const DirectionalLight& light);
+            // TODO: Support multiple lights
+            inline void setLight(const DirectionalLight& light) {
+                light_ = light;
+            }
+            // void addLight(const DirectionalLight& light);
+            // bool removeLight(const DirectionalLight& light);
 
             inline void setSkybox(const std::shared_ptr<Texture>& skybox) {
                 skybox_ = skybox;
             }
 
-            inline constexpr const std::vector<std::pair<Buffer, VkDescriptorSet>>& getUniforms(size_t frame) const {
-                return uniforms_[frame];
-            }
-
-            inline constexpr const std::vector<Renderable>& getObjects() const {
-                return objects_;
-            }
+            void each(size_t frame, std::function<void(Renderable&, Buffer&, VkDescriptorSet)> f);
 
         private:
             std::vector<Renderable> objects_;
-            std::array<std::vector<std::pair<Buffer, VkDescriptorSet>>, kMaxConcurrentFrames> uniforms_;
-            std::vector<DirectionalLight> dir_lights_;
+            std::vector<std::array<std::pair<Buffer, VkDescriptorSet>, kMaxConcurrentFrames>> uniforms_;
+            DirectionalLight light_;
             std::shared_ptr<Texture> skybox_;
+
+            RenderingContext& ctx_;
+            VkDescriptorSetLayout desc_layout_;
+
+            Scene(RenderingContext& ctx);
+            VkDescriptorSet createUniformDescriptor(const Buffer& buffer);
+            void expandUniforms(size_t expand_size);
         };
     }
 }

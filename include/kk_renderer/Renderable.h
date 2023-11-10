@@ -18,10 +18,11 @@ namespace kk {
                 const std::shared_ptr<Material>& material
             );
 
-            size_t id;
             Transform transform;
             std::shared_ptr<Geometry> geometry;
             std::shared_ptr<Material> material;
+
+            bool operator==(const Renderable& rhs) const;
         };
     }
 }

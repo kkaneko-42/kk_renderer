@@ -28,6 +28,14 @@ namespace kk {
             inline Vec3 getRight() const {
                 return rotation * Vec3(1, 0, 0);
             }
+
+            inline bool operator==(const Transform& rhs) const {
+                return (
+                    position == rhs.position &&
+                    rotation == rhs.rotation &&
+                    scale == rhs.scale
+                );
+            }
         };
     }
 }

@@ -8,7 +8,13 @@ Renderable::Renderable(
     const std::shared_ptr<Geometry>& geometry,
     const std::shared_ptr<Material>& material
 ) : geometry(geometry), material(material) {
-    static size_t next_id = 0;
-    // TODO: Reuse destructed id
-    id = next_id++;
+
+}
+
+bool Renderable::operator==(const Renderable& rhs) const {
+    return (
+        (geometry == rhs.geometry) &&
+        (material == rhs.material) &&
+        (transform == rhs.transform)
+    );
 }
