@@ -19,6 +19,7 @@ set(SRCS
 	src/Image.cpp
 	src/Editor.cpp
 	src/PipelineBuilder.cpp
+    src/Scene.cpp
 
     src/platform/GlfwWindow.cpp
 
