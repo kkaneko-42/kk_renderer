@@ -79,8 +79,6 @@ namespace kk {
             std::array<std::pair<Buffer, VkDescriptorSet>, kMaxConcurrentFrames> global_uniforms_;
             VkDescriptorSetLayout object_uniform_layout_;
             std::unordered_map<size_t, std::array<std::pair<Buffer, VkDescriptorSet>, kMaxConcurrentFrames>> object_uniforms_;
-
-            bool is_camera_binded_;
         };
     }
 }
