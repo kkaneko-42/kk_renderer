@@ -29,8 +29,12 @@ Renderer Renderer::create(RenderingContext& ctx) {
     assert(vkAllocateCommandBuffers(ctx.device, &alloc_info, renderer.cmd_bufs_.data()) == VK_SUCCESS);
 
     // Create graphics pipelines and related objects
-    renderer.shadow_map_ = createShadowMap(ctx, VkExtent2D{ 1024, 1024 });
+    renderer.shadow_map_ = createShadowMap(ctx, VkExtent2D{1024, 1024});
+    std::cout << "shadow material created..." << std::endl;
+    renderer.createShadowMaterial(ctx);
+    std::cout << "descriptors created..." << std::endl;
     renderer.createDescriptors(ctx);
+    std::cout << "shadow resources created..." << std::endl;
     renderer.createShadowResources(ctx);
     renderer.render_pass_ = createRenderPass(ctx, ctx.swapchain.format.format);
     renderer.depth_ = createDepthImage(ctx, ctx.swapchain.extent);
@@ -45,17 +49,9 @@ void Renderer::destroy(RenderingContext& ctx) {
         kvp.first.destroy(ctx);
     }
     vkDestroyFramebuffer(ctx.device, shadow_framebuffer_, nullptr);
-    vkDestroyPipeline(ctx.device, shadow_pipeline_, nullptr);
-    vkDestroyPipelineLayout(ctx.device, shadow_layout_, nullptr);
+    shadow_material_.destroy(ctx);
     vkDestroyRenderPass(ctx.device, shadow_pass_, nullptr);
     shadow_map_.destroy(ctx);
-
-    for (auto& kvp : object_uniforms_) {
-        for (size_t i = 0; i < kMaxConcurrentFrames; ++i) {
-            kvp.second[i].first.destroy(ctx);
-        }
-    }
-    vkDestroyDescriptorSetLayout(ctx.device, object_uniform_layout_, nullptr);
 
     for (auto& kvp : global_uniforms_) {
         kvp.first.destroy(ctx);
@@ -152,159 +148,127 @@ void Renderer::endFrame(RenderingContext& ctx) {
     current_frame_ = (current_frame_ + 1) % kMaxConcurrentFrames;
 }
 
-void Renderer::prepareRendering(RenderingContext& ctx, Renderable& renderable) {
-    // Set pipeline state
-    if (!renderable.material->isCompiled()) {
-        renderable.material->compile(ctx, render_pass_, global_uniform_layout_, object_uniform_layout_);
-    }
+void Renderer::render(RenderingContext& ctx, Scene& scene, const Camera& camera) {
+    beginShadowPass(ctx, scene, camera);
+    scene.each(current_frame_, [&ctx, this](Renderable& renderable, Buffer& uniform_buf, VkDescriptorSet uniform_desc) {
+        VkCommandBuffer cmd_buf = cmd_bufs_[current_frame_];
 
-    // Setup uniform buffers
-    /*
-    if (object_uniforms_.find(renderable.id) == object_uniforms_.end()) {
-        for (size_t i = 0; i < kMaxConcurrentFrames; ++i) {
-            auto& uniform = object_uniforms_[renderable.id][i].first;
-            auto& desc = object_uniforms_[renderable.id][i].second;
-
-            uniform = Buffer::create(
-                ctx,
-                sizeof(ObjectUniform),
-                VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-                VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
-            );
-            vkMapMemory(ctx.device, uniform.memory, 0, uniform.size, 0, &uniform.mapped);
-
-            VkDescriptorSetAllocateInfo alloc_info{};
-            alloc_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
-            alloc_info.descriptorPool = ctx.desc_pool;
-            alloc_info.descriptorSetCount = 1;
-            alloc_info.pSetLayouts = &object_uniform_layout_;
-            assert(vkAllocateDescriptorSets(ctx.device, &alloc_info, &desc) == VK_SUCCESS);
-
-            // Update descriptor
-            VkWriteDescriptorSet write_buf{};
-            write_buf.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-            write_buf.dstSet = desc;
-            write_buf.dstBinding = 0;
-            write_buf.descriptorCount = 1;
-            write_buf.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-
-            VkDescriptorBufferInfo buf_info{};
-            buf_info.buffer = uniform.buffer;
-            buf_info.offset = 0;
-            buf_info.range = uniform.size;
-            write_buf.pBufferInfo = &buf_info;
-
-            vkUpdateDescriptorSets(ctx.device, 1, &write_buf, 0, nullptr);
-        }
-    }
-    */
-}
-
-void Renderer::render(RenderingContext& ctx, Renderable& renderable, const Transform& transform) {
-    prepareRendering(ctx, renderable);
-
-    VkCommandBuffer cmd_buf = cmd_bufs_[current_frame_];
-    Material& material = *renderable.material;
-    vkCmdBindPipeline(cmd_buf, VK_PIPELINE_BIND_POINT_GRAPHICS, material.getPipeline());
-
-    // Build object uniform
-    ObjectUniform uniform{};
-    uniform.model_to_world = 
-        glm::translate(glm::mat4(1.0f), transform.position) *
-        glm::mat4_cast(transform.rotation) *
-        glm::scale(glm::mat4(1.0f), transform.scale)
+        // Update uniform buffer
+        Scene::ObjectUniform uniform{};
+        uniform.model_to_world = 
+            glm::translate(glm::mat4(1.0f), renderable.transform.position) *
+            glm::mat4_cast(renderable.transform.rotation) *
+            glm::scale(glm::mat4(1.0f), renderable.transform.scale)
         ;
-    uniform.world_to_model = glm::inverse(uniform.model_to_world);
+        uniform.world_to_model = glm::inverse(uniform.model_to_world);
+        std::memcpy(uniform_buf.mapped, &uniform, sizeof(uniform));
 
-    // Copy object uniform
-    // auto& dst_buf = object_uniforms_[renderable.id][current_frame_].first;
-    // std::memcpy(dst_buf.mapped, &uniform, dst_buf.size);
-
-    // Set descriptor
-    if (!is_camera_binded_) {
+        // Bind descriptor set
         vkCmdBindDescriptorSets(
             cmd_buf,
             VK_PIPELINE_BIND_POINT_GRAPHICS,
-            material.getPipelineLayout(),
-            0,
-            1,
-            &global_uniforms_[current_frame_].second,
-            0,
-            nullptr
+            shadow_material_.getPipelineLayout(),
+            1, // first set
+            1, // desc count
+            &uniform_desc,
+            0, nullptr // dynamic param
         );
-        is_camera_binded_ = true;
-    }
 
-    /*
-    VkDescriptorSet desc_sets[] = { renderable.material->getDescriptorSet(), object_uniforms_[renderable.id][current_frame_].second };
-    vkCmdBindDescriptorSets(
-        cmd_buf,
-        VK_PIPELINE_BIND_POINT_GRAPHICS,
-        material.getPipelineLayout(),
-        1, // first set
-        2, // desc sets count
-        desc_sets, // desc sets
-        0,
-        nullptr
-    );
-    */
+        // Bind geometry
+        Geometry& geometry = *renderable.geometry;
+        const VkDeviceSize offsets[] = { 0 };
+        vkCmdBindVertexBuffers(cmd_buf, 0, 1, &geometry.vertex_buffer.buffer, offsets);
+        vkCmdBindIndexBuffer(cmd_buf, geometry.index_buffer.buffer, 0, VK_INDEX_TYPE_UINT32);
 
-    // Set geometry
-    Geometry& geometry = *renderable.geometry;
-    const VkDeviceSize offsets[] = { 0 };
-    vkCmdBindVertexBuffers(cmd_buf, 0, 1, &geometry.vertex_buffer.buffer, offsets);
-    vkCmdBindIndexBuffer(cmd_buf, geometry.index_buffer.buffer, 0, VK_INDEX_TYPE_UINT32);
+        // Draw
+        vkCmdDrawIndexed(cmd_buf, static_cast<uint32_t>(geometry.indices.size()), 1, 0, 0, 0);
+    });
+    vkCmdEndRenderPass(cmd_bufs_[current_frame_]);
+    beginColorPass(ctx, scene, camera);
+    scene.each(current_frame_, [&ctx, &scene, this](Renderable& renderable, Buffer& uniform_buf, VkDescriptorSet uniform_desc) {
+        VkCommandBuffer cmd_buf = cmd_bufs_[current_frame_];
+        if (!renderable.material->isCompiled()) {
+            renderable.material->compile(ctx, render_pass_, global_uniform_layout_, scene.getObjectUniformLayout());
+        }
+        vkCmdBindPipeline(cmd_buf, VK_PIPELINE_BIND_POINT_GRAPHICS, renderable.material->getPipeline());
 
-    // Draw
-    vkCmdDrawIndexed(cmd_buf, static_cast<uint32_t>(geometry.indices.size()), 1, 0, 0, 0);
+        // Update uniform buffer
+        Scene::ObjectUniform uniform{};
+        uniform.model_to_world = 
+            glm::translate(glm::mat4(1.0f), renderable.transform.position) *
+            glm::mat4_cast(renderable.transform.rotation) *
+            glm::scale(glm::mat4(1.0f), renderable.transform.scale)
+        ;
+        uniform.world_to_model = glm::inverse(uniform.model_to_world);
+        std::memcpy(uniform_buf.mapped, &uniform, sizeof(uniform));
+
+        VkDescriptorSet sets[] = { renderable.material->getDescriptorSet(), uniform_desc };
+        vkCmdBindDescriptorSets(
+            cmd_buf,
+            VK_PIPELINE_BIND_POINT_GRAPHICS,
+            renderable.material->getPipelineLayout(),
+            1, 2, sets, // first set, set count, sets ptr
+            0, nullptr
+        );
+
+        // Bind geometry
+        Geometry& geometry = *renderable.geometry;
+        const VkDeviceSize offsets[] = { 0 };
+        vkCmdBindVertexBuffers(cmd_buf, 0, 1, &geometry.vertex_buffer.buffer, offsets);
+        vkCmdBindIndexBuffer(cmd_buf, geometry.index_buffer.buffer, 0, VK_INDEX_TYPE_UINT32);
+
+        // Draw
+        vkCmdDrawIndexed(cmd_buf, static_cast<uint32_t>(geometry.indices.size()), 1, 0, 0, 0);
+    });
+    vkCmdEndRenderPass(cmd_bufs_[current_frame_]);
 }
 
-void Renderer::renderShadowMap(RenderingContext& ctx, std::vector<Renderable>& scene, const DirectionalLight& light) {
+void Renderer::beginShadowPass(RenderingContext& ctx, Scene& scene, const Camera& camera) {
+    if (!shadow_material_.isCompiled()) {
+        shadow_material_.compile(ctx, shadow_pass_, global_uniform_layout_, scene.getObjectUniformLayout());
+    }
     VkCommandBuffer cmd_buf = cmd_bufs_[current_frame_];
-    const VkExtent2D shadow_map_extent{ shadow_map_.width, shadow_map_.height };
 
-    VkRenderPassBeginInfo pass_info{};
-    pass_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-    pass_info.renderPass = shadow_pass_;
-    pass_info.framebuffer = shadow_framebuffer_;
-    pass_info.renderArea.extent = shadow_map_extent;
-
-    std::array<VkClearValue, 1> clear_values{};
-    clear_values[0].depthStencil = { 1.0f, 0 };
-    pass_info.clearValueCount = static_cast<uint32_t>(clear_values.size());
-    pass_info.pClearValues = clear_values.data();
-
-    vkCmdBeginRenderPass(cmd_buf, &pass_info, VK_SUBPASS_CONTENTS_INLINE);
+    // Begin render pass
+    VkRenderPassBeginInfo begin_info{};
+    begin_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+    begin_info.renderPass = shadow_pass_;
+    begin_info.framebuffer = shadow_framebuffer_;
+    begin_info.renderArea.extent = VkExtent2D{shadow_map_.width, shadow_map_.height};
+    VkClearValue clear_value{};
+    clear_value.depthStencil = { 1.0f, 0 };
+    begin_info.clearValueCount = 1;
+    begin_info.pClearValues = &clear_value;
+    vkCmdBeginRenderPass(cmd_buf, &begin_info, VK_SUBPASS_CONTENTS_INLINE);
 
     // Set viewport
     VkViewport viewport{};
-    viewport.width = static_cast<float>(shadow_map_extent.width);
-    viewport.height = static_cast<float>(shadow_map_extent.height);
+    viewport.width = static_cast<float>(shadow_map_.width);
+    viewport.height = static_cast<float>(shadow_map_.height);
     viewport.maxDepth = 1.0f;
     vkCmdSetViewport(cmd_buf, 0, 1, &viewport);
 
     // Set scissor
     VkRect2D scissor{};
-    scissor.extent = shadow_map_extent;
+    scissor.extent = VkExtent2D{shadow_map_.width, shadow_map_.height};
     vkCmdSetScissor(cmd_buf, 0, 1, &scissor);
 
     // Setup global uniform
+    const auto& light = scene.getLight();
     GlobalUniform global_uniform{};
     global_uniform.view = glm::lookAt(
         light.transform.position,
         light.transform.position + light.transform.getForward(),
         Vec3(0, -1, 0)
     );
-    // global_uniform.proj = glm::ortho<float>(-10, 10, -10, 10, -10, 20); // TODO: Set from outside
     global_uniform.proj = glm::ortho<float>(-10, 10, -10, 10, -10, 20); // TODO: Set from outside
     global_uniform.proj[1][1] *= -1;
     auto& current_global = shadow_global_uniforms_[current_frame_].first;
     std::memcpy(current_global.mapped, &global_uniform, current_global.size);
-
     vkCmdBindDescriptorSets(
         cmd_buf,
         VK_PIPELINE_BIND_POINT_GRAPHICS,
-        shadow_layout_,
+        shadow_material_.getPipelineLayout(),
         0,
         1,
         &shadow_global_uniforms_[current_frame_].second,
@@ -312,152 +276,68 @@ void Renderer::renderShadowMap(RenderingContext& ctx, std::vector<Renderable>& s
         nullptr
     );
 
-    vkCmdBindPipeline(cmd_buf, VK_PIPELINE_BIND_POINT_GRAPHICS, shadow_pipeline_);
-
-    // Render objects
-    for (auto& renderable : scene) {
-        prepareRendering(ctx, renderable);
-
-        // Setup object uniform
-        /*
-        ObjectUniform uniform{};
-        uniform.model_to_world =
-            glm::translate(glm::mat4(1.0f), renderable.transform.position) *
-            glm::mat4_cast(renderable.transform.rotation) *
-            glm::scale(glm::mat4(1.0f), renderable.transform.scale)
-            ;
-        uniform.world_to_model = glm::inverse(uniform.model_to_world);
-        
-        auto& current_object = object_uniforms_[renderable.id][current_frame_].first;
-        std::memcpy(current_object.mapped, &uniform, current_object.size);
-        vkCmdBindDescriptorSets(
-            cmd_buf,
-            VK_PIPELINE_BIND_POINT_GRAPHICS,
-            shadow_layout_,
-            1,
-            1,
-            &object_uniforms_[renderable.id][current_frame_].second,
-            0,
-            nullptr
-        );
-        */
-
-        Geometry& geometry = *renderable.geometry;
-        const VkDeviceSize offsets[] = { 0 };
-        vkCmdBindVertexBuffers(cmd_buf, 0, 1, &geometry.vertex_buffer.buffer, offsets);
-        vkCmdBindIndexBuffer(cmd_buf, geometry.index_buffer.buffer, 0, VK_INDEX_TYPE_UINT32);
-
-        vkCmdDrawIndexed(cmd_buf, static_cast<uint32_t>(geometry.indices.size()), 1, 0, 0, 0);
-    }
-
-    vkCmdEndRenderPass(cmd_buf);
+    vkCmdBindPipeline(cmd_buf, VK_PIPELINE_BIND_POINT_GRAPHICS, shadow_material_.getPipeline());
 }
 
-void Renderer::renderColor(RenderingContext& ctx, std::vector<Renderable>& scene, const DirectionalLight& light, const Camera& camera, Swapchain& swapchain) {
+void Renderer::beginColorPass(RenderingContext& ctx, Scene& scene, const Camera& camera) {
     VkCommandBuffer cmd_buf = cmd_bufs_[current_frame_];
 
     // Begin render pass
-    VkRenderPassBeginInfo render_pass_info{};
-    render_pass_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-    render_pass_info.renderPass = render_pass_;
-    render_pass_info.framebuffer = framebuffers_[img_idx_];
-    render_pass_info.renderArea.extent = swapchain.extent;
-
+    VkRenderPassBeginInfo begin_info{};
+    begin_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+    begin_info.renderPass = render_pass_;
+    begin_info.framebuffer = framebuffers_[img_idx_];
+    begin_info.renderArea.extent = ctx.swapchain.extent;
     std::array<VkClearValue, 2> clear_values{};
-    clear_values[0].color = { {0.0f, 0.0f, 0.0f, 1.0f} };
-    clear_values[1].depthStencil = { 1.0f, 0 };
-    render_pass_info.clearValueCount = static_cast<uint32_t>(clear_values.size());
-    render_pass_info.pClearValues = clear_values.data();
-
-    vkCmdBeginRenderPass(cmd_buf, &render_pass_info, VK_SUBPASS_CONTENTS_INLINE);
+    clear_values[0].color = {{0.0f, 0.0f, 0.0f, 1.0f}};
+    clear_values[1].depthStencil = {1.0f, 0};
+    begin_info.clearValueCount = static_cast<uint32_t>(clear_values.size());
+    begin_info.pClearValues = clear_values.data();
+    vkCmdBeginRenderPass(cmd_buf, &begin_info, VK_SUBPASS_CONTENTS_INLINE);
 
     // Set viewport
     VkViewport viewport{};
-    viewport.width = static_cast<float>(swapchain.extent.width);
-    viewport.height = static_cast<float>(swapchain.extent.height);
+    viewport.width = static_cast<float>(ctx.swapchain.extent.width);
+    viewport.height = static_cast<float>(ctx.swapchain.extent.height);
     viewport.maxDepth = 1.0f;
     vkCmdSetViewport(cmd_buf, 0, 1, &viewport);
 
     // Set scissor
     VkRect2D scissor{};
-    scissor.extent = swapchain.extent;
+    scissor.extent = ctx.swapchain.extent;
     vkCmdSetScissor(cmd_buf, 0, 1, &scissor);
 
-    // Set global uniform
-    GlobalUniform global{};
-    global.view = glm::lookAt(
+    // Setup global uniform
+    const auto& light = scene.getLight();
+    GlobalUniform global_uniform{};
+    global_uniform.view = glm::lookAt(
         camera.transform.position,
         camera.transform.position + camera.transform.getForward(),
         Vec3(0, -1, 0)
     );
-    global.proj = camera.getProjection();
-    global.light_view = glm::lookAt(
+    global_uniform.proj = camera.getProjection();
+    global_uniform.light_view = glm::lookAt(
         light.transform.position,
         light.transform.position + light.transform.getForward(),
         Vec3(0, -1, 0)
     );
-    global.light_proj = glm::ortho<float>(-10, 10, -10, 10, -10, 20);
-    global.light_proj[1][1] *= -1;
-    global.light_pos = light.transform.position;
-    global.light_dir = light.transform.getForward();
-    global.light_color = light.color;
-    global.light_intensity = light.intensity;
-    auto& current_global = global_uniforms_[current_frame_].first;
-    std::memcpy(current_global.mapped, &global, current_global.size);
-
-    for (auto& renderable : scene) {
-        prepareRendering(ctx, renderable);
-
-        Material& material = *renderable.material;
-        vkCmdBindPipeline(cmd_buf, VK_PIPELINE_BIND_POINT_GRAPHICS, material.getPipeline());
-
-        /*
-        ObjectUniform uniform{};
-        uniform.model_to_world =
-            glm::translate(glm::mat4(1.0f), renderable.transform.position) *
-            glm::mat4_cast(renderable.transform.rotation) *
-            glm::scale(glm::mat4(1.0f), renderable.transform.scale)
-            ;
-        uniform.world_to_model = glm::inverse(uniform.model_to_world);
-        auto& current_object = object_uniforms_[renderable.id][current_frame_].first;
-        std::memcpy(current_object.mapped, &uniform, current_object.size);
-
-        VkDescriptorSet desc_sets[] = { 
-            global_uniforms_[current_frame_].second, // FIXME: This should be bound once
-            renderable.material->getDescriptorSet(),
-            object_uniforms_[renderable.id][current_frame_].second
-        };
-        vkCmdBindDescriptorSets(
-            cmd_buf,
-            VK_PIPELINE_BIND_POINT_GRAPHICS,
-            material.getPipelineLayout(),
-            0, // first set
-            3, // desc sets count
-            desc_sets, // desc sets
-            0,
-            nullptr
-        );
-        */
-
-        Geometry& geometry = *renderable.geometry;
-        const VkDeviceSize offsets[] = { 0 };
-        vkCmdBindVertexBuffers(cmd_buf, 0, 1, &geometry.vertex_buffer.buffer, offsets);
-        vkCmdBindIndexBuffer(cmd_buf, geometry.index_buffer.buffer, 0, VK_INDEX_TYPE_UINT32);
-
-        vkCmdDrawIndexed(cmd_buf, static_cast<uint32_t>(geometry.indices.size()), 1, 0, 0, 0);
-    }
-
-    vkCmdEndRenderPass(cmd_buf);
-}
-
-// TODO: Frame beginning
-void Renderer::render(RenderingContext& ctx, std::vector<Renderable>& scene, const DirectionalLight& light, const Camera& camera) {
-    renderShadowMap(ctx, scene, light);
-    renderColor(ctx, scene, light, camera, ctx.swapchain);
-}
-
-void Renderer::compileMaterial(RenderingContext& ctx, const std::shared_ptr<Material>& material) {
-    material->compile(ctx, render_pass_, global_uniform_layout_, object_uniform_layout_);
+    global_uniform.light_proj = glm::ortho<float>(-10, 10, -10, 10, -10, 20); // TODO: Set from outside
+    global_uniform.light_proj[1][1] *= -1;
+    global_uniform.light_pos = light.transform.position;
+    global_uniform.light_dir = light.transform.getForward();
+    global_uniform.light_color = light.color;
+    global_uniform.light_intensity = light.intensity;
+    auto& current_global = shadow_global_uniforms_[current_frame_].first;
+    std::memcpy(current_global.mapped, &global_uniform, current_global.size);
+    vkCmdBindDescriptorSets(
+        cmd_buf,
+        VK_PIPELINE_BIND_POINT_GRAPHICS,
+        shadow_material_.getPipelineLayout(), // CONCERN: Pipeline layout compatible
+        0, // first set
+        1, // set count
+        &shadow_global_uniforms_[current_frame_].second,
+        0, nullptr // dynamic params
+    );
 }
 
 static VkRenderPass createRenderPass(RenderingContext& ctx, VkFormat swapchain_format /* TODO: remove swapchain_format */) {
@@ -586,18 +466,6 @@ void Renderer::createDescriptors(RenderingContext& ctx) {
     global_info.bindingCount = static_cast<uint32_t>(globals.size());
     global_info.pBindings = globals.data();
     assert(vkCreateDescriptorSetLayout(ctx.device, &global_info, nullptr, &global_uniform_layout_) == VK_SUCCESS);
-
-    VkDescriptorSetLayoutBinding object{};
-    object.binding = 0;
-    object.descriptorCount = 1;
-    object.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    object.stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
-
-    VkDescriptorSetLayoutCreateInfo object_info{};
-    object_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-    object_info.bindingCount = 1;
-    object_info.pBindings = &object;
-    assert(vkCreateDescriptorSetLayout(ctx.device, &object_info, nullptr, &object_uniform_layout_) == VK_SUCCESS);
 
     // Create descriptor sets
     for (size_t i = 0; i < kMaxConcurrentFrames; ++i) {
@@ -745,30 +613,6 @@ void Renderer::createShadowResources(RenderingContext& ctx) {
 
     assert(vkCreateRenderPass(ctx.device, &render_pass_info, nullptr, &shadow_pass_) == VK_SUCCESS);
 
-    // Create pieline layout
-    VkDescriptorSetLayout set_layouts[] = { global_uniform_layout_, object_uniform_layout_ };
-    VkPipelineLayoutCreateInfo pipeline_layout_info{};
-    pipeline_layout_info.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-    pipeline_layout_info.setLayoutCount = 2;
-    pipeline_layout_info.pSetLayouts = set_layouts;
-    assert(vkCreatePipelineLayout(ctx.device, &pipeline_layout_info, nullptr, &shadow_layout_) == VK_SUCCESS);
-
-    // Create shader modules
-    auto vert = std::make_shared<Shader>(Shader::create(ctx, TEST_RESOURCE_DIR + std::string("shaders/shadow.vert.spv")));
-    auto frag = std::make_shared<Shader>(Shader::create(ctx, TEST_RESOURCE_DIR + std::string("shaders/shadow.frag.spv")));
-
-    // Create pipeline
-    PipelineBuilder builder;
-    shadow_pipeline_ = builder
-        .setDefault()
-        .setVertexShader(vert)
-        .setFragmentShader(frag)
-        .setFrontFace(VK_FRONT_FACE_CLOCKWISE)
-        .build(ctx, 0, shadow_layout_, shadow_pass_)
-    ;
-    vert->destroy(ctx);
-    frag->destroy(ctx);
-
     // Create frame buffer
     VkFramebufferCreateInfo framebuf_info{};
     framebuf_info.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
@@ -779,4 +623,12 @@ void Renderer::createShadowResources(RenderingContext& ctx) {
     framebuf_info.height = shadow_map_.height;
     framebuf_info.layers = 1;
     assert(vkCreateFramebuffer(ctx.device, &framebuf_info, nullptr, &shadow_framebuffer_) == VK_SUCCESS);
+}
+
+void Renderer::createShadowMaterial(RenderingContext& ctx) {
+    auto vert = std::make_shared<Shader>(Shader::create(ctx, TEST_RESOURCE_DIR + std::string("shaders/shadow.vert.spv")));
+    auto frag = std::make_shared<Shader>(Shader::create(ctx, TEST_RESOURCE_DIR + std::string("shaders/shadow.frag.spv")));
+    shadow_material_.setVertexShader(vert);
+    shadow_material_.setFragmentShader(frag);
+    shadow_material_.setCullMode(VK_CULL_MODE_FRONT_BIT);
 }

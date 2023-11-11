@@ -22,11 +22,18 @@ namespace kk {
             inline void setLight(const DirectionalLight& light) {
                 light_ = light;
             }
+            inline constexpr const DirectionalLight& getLight() const {
+                return light_;
+            }
             // void addLight(const DirectionalLight& light);
             // bool removeLight(const DirectionalLight& light);
 
             inline void setSkybox(const std::shared_ptr<Texture>& skybox) {
                 skybox_ = skybox;
+            }
+
+            inline VkDescriptorSetLayout getObjectUniformLayout() const {
+                return desc_layout_;
             }
 
             void each(size_t frame, std::function<void(Renderable&, Buffer&, VkDescriptorSet)> f);

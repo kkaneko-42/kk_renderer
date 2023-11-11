@@ -26,13 +26,16 @@ namespace kk {
                 resource_data_[name] = {std::static_pointer_cast<void>(texture), true};
             }
 
-            // CONCERN: Vulkan abstraction
             inline void setFrontFace(VkFrontFace front_face) {
                 rasterizer_.frontFace = front_face;
             }
 
             inline void setDepthCompareOp(VkCompareOp op) {
                 depth_stencil_.depthCompareOp = op;
+            }
+
+            inline void setCullMode(VkCullModeFlags mode) {
+                rasterizer_.cullMode = mode;
             }
 
             void compile(

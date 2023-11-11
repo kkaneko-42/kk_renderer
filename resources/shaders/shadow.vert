@@ -5,7 +5,7 @@ layout(set = 0, binding = 0) uniform PerView {
 	mat4 proj;
 } perView;
 
-layout(set = 1, binding = 0) uniform PerObject {
+layout(set = 2, binding = 0) uniform PerObject {
 	mat4 model;
 }	perObject;
 
